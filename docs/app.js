@@ -166,7 +166,7 @@ function refreshLearning(){
  el('learning-info').textContent='🧠 '+n.chats+' conversations · '+n.memory+' saved memories · '+n.turns+' learned turns · '+n.weights+' topic features. Base training: '+trainingStats.examples+' phrases.';
  el('model-status').textContent='🧠 '+trainingStats.examples.toLocaleString('en-US')+' training phrases · '+topicCount+' topics';
  renderConversationList();
- if(!el('inspector').hidden)renderInspector();
+ if(activePanel==='inspector')renderInspector();
 }
 function languageKey(ctx){return ctx.mixed?ctx.languages.slice().sort().join('+'):ctx.primary;}
 function localAnswer(value,ctx){
@@ -224,7 +224,7 @@ function renderInspector(){
    const history=data.history.filter(x=>safeText(x.role+' '+x.text).includes(q));
    summary.textContent=data.facts.length+' memories · '+data.chats+' conversations · '+Math.floor(getHistory().length/2)+' exchanges in this chat';
    container.append(element('div','inspector-section-title','Saved across all conversations'));
-   if(!facts.length)container.append(element('div','empty-state',q?'No memories match your search.':'No saved facts yet. Add one above or tell MiniGPT something to remember.'));
+   if(!facts.length)container.append(element('div','empty-state',q?'No memories match your search.':'No saved facts yet. Add one above or tell OtaAI something to remember.'));
    for(const fact of facts){
     const card=element('div','memory-card'),heading=element('div','fact-head');
     const remove=element('button','fact-delete','✕');
@@ -268,13 +268,8 @@ function setInspectorTab(next){
  el('inspector-search').value='';
  renderInspector();
 }
-function toggleInspector(open){
- el('inspector').hidden=!open;
- el('inspector-toggle').setAttribute('aria-expanded',String(open));
- if(open)renderInspector();
-}
-el('inspector-toggle').addEventListener('click',()=>toggleInspector(el('inspector').hidden));
-el('inspector-close').addEventListener('click',()=>toggleInspector(false));
+el('inspector-toggle').addEventListener('click',()=>setPanel('inspector'));
+el('inspector-close').addEventListener('click',()=>setPanel(null));
 el('tab-memory').addEventListener('click',()=>setInspectorTab('memory'));
 el('tab-weights').addEventListener('click',()=>setInspectorTab('weights'));
 el('inspector-search').addEventListener('input',renderInspector);
@@ -285,10 +280,10 @@ el('memory-form').addEventListener('submit',async event=>{
   refreshLearning();state('Memory saved locally');
  }
 });
-el('settings-toggle').addEventListener('click',()=>{
- const box=el('settings');box.hidden=!box.hidden;
- el('settings-toggle').setAttribute('aria-expanded',String(!box.hidden));
-});
+el('settings-toggle').addEventListener('click',()=>setPanel('settings'));
+el('appearance-toggle').addEventListener('click',()=>setPanel('appearance'));
+el('google-toggle').addEventListener('click',()=>setPanel('google'));
+document.querySelectorAll('[data-close-panel]').forEach(b=>b.addEventListener('click',()=>setPanel(null)));
 el('clear').addEventListener('click',startNewConversation);
 el('forget-memory').addEventListener('click',async()=>{
  if(busy)return;
@@ -312,7 +307,7 @@ key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Ke
 document.querySelectorAll('[data-try]').forEach(button=>button.addEventListener('click',()=>{
  if(busy)return;input.value=button.dataset.try;form.requestSubmit();
 }));
-void ready().then(()=>{renderActiveChat();refreshLearning();state('Local model ready');})
+void ready().then(()=>{renderActiveChat();refreshLearning();state('OtaAI ready');})
  .catch(()=>state('Could not load local memory'));
 
 async function ask(history,secret,ctx){
@@ -348,7 +343,7 @@ form.addEventListener('submit',async event=>{
  const value=input.value.trim();if(!value)return;
  busy=true;el('send').disabled=true;input.disabled=true;input.value='';
  const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
- input.placeholder=localText[lastLanguage].placeholder;
+ input.placeholder='Message OtaAI... (Shift+Enter for a new line)';
  document.documentElement.lang=lastLanguage;
  bubble('user',value);messages.push({role:'user',content:value});
  try{
@@ -367,8 +362,8 @@ form.addEventListener('submit',async event=>{
   refreshLearning();
  }catch(error){
   console.error(error);
-  bubble('assistant','Hubo un error local. Intenta enviar el mensaje otra vez. 🤖');
-  state('⚠️ Error de MiniGPT');
+  bubble('assistant','A local error occurred. Please try sending that message again.');
+  state('OtaAI error');
  }finally{
   busy=false;el('send').disabled=false;input.disabled=false;input.focus();
  }
