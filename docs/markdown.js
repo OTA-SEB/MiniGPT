@@ -1,15 +1,18 @@
+import { parseOtaTags,makeOtaNode,createCodeBlock } from './ota-tags.js?v=1.2';
 // Safe DOM-only Markdown rendering for users and assistant messages.
-const inlinePattern=/(\[([^\]]{1,180})\]\((https?:\/\/[^\s)]+)\)|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|\x60([^\x60\n]+)\x60|\*([^*\n]+)\*|_([^_\n]+)_)/g;
+const inlinePattern=/(\[([^\]]{1,180})\]\((https?:\/\/[^\s)]+)\)|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|\x60([^\x60\n]+)\x60|\*([^*\n]+)\*|_([^_\n]+)_|\uE100(\d+)\uE101)/g;
 function el(tag,cls=''){const x=document.createElement(tag);if(cls)x.className=cls;return x;}
-function inline(parent,value,depth=0){
+function inline(parent,value,depth=0,ctx={items:[],options:{}}){
  const str=String(value??'');if(depth>4){parent.append(document.createTextNode(str));return;}
  let at=0;
  for(const m of str.matchAll(inlinePattern)){
   const i=m.index||0;if(i>at)parent.append(document.createTextNode(str.slice(at,i)));
-  if(m[2]!==undefined){
+  if(m[10]!==undefined){
+   const tag=ctx.items[Number(m[10])];if(tag)parent.append(makeOtaNode(tag,{onSave:ctx.options.onSave,renderNested:(root,raw)=>renderMarkdown(root,raw,ctx.options)}));
+  }else if(m[2]!==undefined){
    try{
     const url=new URL(m[3]);if(!['http:','https:'].includes(url.protocol))throw Error('Unsafe URL');
-    const a=el('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';inline(a,m[2],depth+1);parent.append(a);
+    const a=el('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';inline(a,m[2],depth+1,ctx);parent.append(a);
    }catch{parent.append(document.createTextNode(m[0]));}
   }else{
    let tag='em',text='';
@@ -17,7 +20,7 @@ function inline(parent,value,depth=0){
    else if(m[6]!==undefined){tag='del';text=m[6];}
    else if(m[7]!==undefined){tag='code';text=m[7];}
    else text=m[8]??m[9]??'';
-   const x=el(tag);if(tag==='code')x.textContent=text;else inline(x,text,depth+1);parent.append(x);
+   const x=el(tag);if(tag==='code')x.textContent=text;else inline(x,text,depth+1,ctx);parent.append(x);
   }
   at=i+m[0].length;
  }
@@ -33,17 +36,7 @@ function highlight(code,where){
  }
  if(i<code.length)where.append(document.createTextNode(code.slice(i)));
 }
-function codeBlock(root,code,lang){
- const card=el('section','code-card'),head=el('div','code-header'),label=el('span','code-language'),copy=el('button','code-copy');
- label.textContent=(lang||'text').slice(0,32);copy.type='button';copy.textContent='Copy code';
- copy.addEventListener('click',async()=>{
-  try{await navigator.clipboard.writeText(code);copy.textContent='Copied ✓';setTimeout(()=>copy.textContent='Copy code',1400);}
-  catch{copy.textContent='Select and copy';}
- });
- head.append(label,copy);
- const pre=el('pre'),codeTag=el('code');codeTag.className='language-'+String(lang||'text').replace(/[^a-z0-9+#-]/gi,'');
- highlight(code,codeTag);pre.append(codeTag);card.append(head,pre);root.append(card);
-}
+function codeBlock(root,code,lang){root.append(createCodeBlock(code,lang));}
 const fence=line=>/^ {0,3}(\x60{3,}|~{3,})\s*([^\s\x60~]*)\s*$/.exec(line);
 const listLine=line=>/^ {0,3}([-*+]|\d+[.)])\s+(.+)$/.exec(line);
 const heading=line=>/^ {0,3}(#{1,6})\s+(.+)$/.exec(line);
@@ -55,11 +48,15 @@ const blockStart=(lines,i)=>{
  const l=lines[i]||'';
  return !l.trim()||fence(l)||heading(l)||listLine(l)||quote(l)||divider(l)||(l.includes('|')&&sep(lines[i+1]||''));
 };
-export function renderMarkdown(root,input){
- root.replaceChildren();const lines=String(input??'').replace(/\r\n?/g,'\n').split('\n');
+export function renderMarkdown(root,input,options={}){
+ root.replaceChildren();
+ const parsed=parseOtaTags(String(input??'').replace(/\r\n?/g,'\n'));
+ const ctx={items:parsed.items,options},lines=parsed.text.split('\n');
  let i=0,limit=0;
  while(i<lines.length&&limit++<400){
   const l=lines[i];if(!l.trim()){i++;continue;}
+  const standalone=/^\uE100(\d+)\uE101$/.exec(l.trim());
+  if(standalone){const item=ctx.items[Number(standalone[1])];if(item){root.append(makeOtaNode(item,{onSave:options.onSave,renderNested:(node,text)=>renderMarkdown(node,text,options)}));i++;continue;}}
   const f=fence(l);
   if(f){
    i++;const char=f[1][0],size=f[1].length,language=f[2]||'text',body=[];
@@ -67,16 +64,16 @@ export function renderMarkdown(root,input){
    while(i<lines.length&&!end.test(lines[i]))body.push(lines[i++]);
    if(i<lines.length)i++;codeBlock(root,body.join('\n'),language);continue;
   }
-  const h=heading(l);if(h){const tag=el('h'+h[1].length);inline(tag,h[2]);root.append(tag);i++;continue;}
+  const h=heading(l);if(h){const tag=el('h'+h[1].length);inline(tag,h[2],0,ctx);root.append(tag);i++;continue;}
   if(divider(l)){root.append(el('hr'));i++;continue;}
   if(l.includes('|')&&sep(lines[i+1]||'')){
    const heads=row(l),table=el('table'),thead=el('thead'),top=el('tr');
-   for(const t of heads){const th=el('th');inline(th,t);top.append(th);}
+   for(const t of heads){const th=el('th');inline(th,t,0,ctx);top.append(th);}
    thead.append(top);table.append(thead);i+=2;
    const body=el('tbody');
    while(i<lines.length&&lines[i].includes('|')&&lines[i].trim()){
     const tr=el('tr'),items=row(lines[i++]);
-    for(let j=0;j<heads.length;j++){const td=el('td');inline(td,items[j]||'');tr.append(td);}
+    for(let j=0;j<heads.length;j++){const td=el('td');inline(td,items[j]||'',0,ctx);tr.append(td);}
     body.append(tr);
    }
    table.append(body);const wrap=el('div','table-scroll');wrap.append(table);root.append(wrap);continue;
@@ -84,7 +81,7 @@ export function renderMarkdown(root,input){
   if(quote(l)){
    const block=el('blockquote');while(i<lines.length){
     const m=quote(lines[i]);if(!m)break;
-    const p=el('p');inline(p,m[1]);block.append(p);i++;
+    const p=el('p');inline(p,m[1],0,ctx);block.append(p);i++;
    }
    root.append(block);continue;
   }
@@ -96,8 +93,8 @@ export function renderMarkdown(root,input){
     const item=el('li'),task=/^\[( |x|X)\]\s+(.+)$/.exec(m[2]);
     if(task){
      const cb=el('input');cb.type='checkbox';cb.checked=task[1].toLowerCase()==='x';cb.disabled=true;
-     item.append(cb);inline(item,task[2]);
-    }else inline(item,m[2]);
+     item.append(cb);inline(item,task[2],0,ctx);
+    }else inline(item,m[2],0,ctx);
     list.append(item);i++;
    }
    root.append(list);continue;
@@ -107,7 +104,7 @@ export function renderMarkdown(root,input){
    if(!lines[i].trim())break;linesInPara.push(lines[i++]);
   }
   if(!linesInPara.length){i++;continue;}
-  const p=el('p');linesInPara.forEach((part,index)=>{if(index)p.append(el('br'));inline(p,part);});root.append(p);
+  const p=el('p');linesInPara.forEach((part,index)=>{if(index)p.append(el('br'));inline(p,part,0,ctx);});root.append(p);
  }
  if(!root.childNodes.length)root.append(el('p'));
 }
