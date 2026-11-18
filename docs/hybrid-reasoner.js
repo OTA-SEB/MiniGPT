@@ -7,7 +7,7 @@ const connectors=/\b(?:y|and|e|ou|vs|versus|comparar|compara|compare|comparison|
 export function composeTopicAnswer(input,language='es'){
  const text=String(input||'');
  if(text.length>550||!connectors.test(text))return null;
- if(!/(?:\bqu[eé]\b|\bwhat\b|\bo que\b|\bexplain\b|\bexplica\b|\bsobre\b|\babout\b|について|説明|とは|比較)/iu.test(text))return null;
+ if(!/(?:\bqu[eé]\b|\bwhat\b|\bo que\b|\bexplain\b|\bexplica\b|\bsobre\b|\babout\b|\bcompara\b|\bcomparar\b|\bcompare\b|\bdiferencia\b|について|説明|とは|比較)/iu.test(text))return null;
  const found=detectTopicMatches(text,language);
  const tokens=new Map();
  for(const hit of found){
