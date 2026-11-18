@@ -1,6 +1,6 @@
 # OtaAI 1.0
 
-OtaAI is a multi-theme, local-first browser AI workspace with conversations, Markdown, basic reasoning, persistent memories, chat folders, and optional Google Drive backups.
+OtaAI is a multi-theme, **generative-first** browser chat app. Its primary engine is a pretrained language model that writes original replies; automatic topic/reference/classifier responses are only a fallback if generation is unavailable. It retains Markdown, memory, chat folders, optional external AI and manual Google Drive backups.
 
 **Website:** https://ota-seb.github.io/MiniGPT/
 
@@ -15,7 +15,7 @@ The repository and GitHub Pages address keep the old path for backward compatibi
 - Conversation folders, shared memories, learned weights, API keys, personalization and Google Drive remain in the sidebar.
 - **Enter inserts a line break**, including on mobile keyboards. Only clicking **Send** (or pressing **Ctrl+Enter / Cmd+Enter**) submits the message.
 - **Live Markdown as you type**: the editor itself turns completed `**bold**`, `*italic*`, `~~strikethrough~~`, inline backticks, Markdown links, `# ` headings and `- ` lists into visible formatting immediately. Typing three backticks and an optional language, then pressing Enter, opens an editable code block. Both sent user messages and AI responses also render Markdown. HTML pasted into the editor is treated as text.
-- **Compact source indicator on assistant messages** (top-left): 🧠 for trained local model answers or external AI; tap for estimated match confidence or the chosen API model. 🧩 for automatic/reference/memory/rule-based responses; tap for the keyword or specific rule that triggered the response. Exact detected keywords are surfaced when present. Older saved replies without provenance are labeled accordingly rather than guessed.
+- **Compact source indicator on assistant messages** (top-left): 🧠 for genuinely generated replies (browser language model or external API) and 🧩 for automatic fallbacks, including the legacy classifier. Tap to see the actual source, reason for fallback, or model. Exact detected keywords are surfaced when present. Older saved replies without provenance are labeled accordingly rather than guessed.
 - Response metadata is saved in local chat history and Drive backups, so the indicator still works after reopening a conversation.
 - Removed suggested prompts, repeated response-status labels, and unused formatting controls to keep the interface uncluttered.
 
@@ -50,12 +50,31 @@ Google backup files contain private user data under the selected Google account.
 
 ## Model capabilities
 
-OtaAI is now a **hybrid local AI system**: a real trainable neural classifier works alongside the original statistical matcher, user-approved memory retrieval, deterministic reasoning and curated topic answers. It covers **400 topics** across science, culture, technical subjects and 20 other categories, with reference explanations in English, Spanish, Portuguese and Japanese.
+### Generative-first routing (fixed architecture)
 
-### Neural network
+1. If the user supplies an external API key, the chosen external generative model writes the answer.
+2. Otherwise, or if the external API fails, the app tries a **real pretrained browser-based generative language model** (new words generated token-by-token, not selected by topic).
+3. **Only when neither model returns a usable response** does OtaAI call the old memory, rule-based reasoning, multilingual statistical matcher, classifier, or curated topics. The fallback reason is visible through the 🧩 icon.
+4. If the user cancels local generation, **no automatic topic answer is substituted**.
+
+The browser models are hosted by Hugging Face, loaded with Transformers.js 4.3.2 from jsDelivr and cached when the browser supports caching. They are **not** invented/trained from scratch by this repository:
+
+- **Auto (default):** Qwen2.5-0.5B-Instruct quantized in 4-bit on compatible **WebGPU** devices; on low-memory or unsupported devices, the smaller CPU model is selected.
+- **Qwen:** choose the stronger Qwen2.5 0.5B model, with automatic fallback to the lightweight model if it cannot be loaded.
+- **Smol:** SmolLM2-135M-Instruct quantized in 4-bit, run through browser **WebAssembly**. It is lighter but has substantially weaker chat and multilingual ability.
+
+The **first sent message** initiates the large model download, so the interface displays download progress and a **Stop** button that can terminate the worker. On-device inference may be slow, fail for lack of memory, or be unavailable in older browsers. The app does not claim successful local generation if the model fails.
+
+Downloaded weights and the Transformers.js runtime are fetched over HTTPS, but **chat prompts are not sent to the model hosts**: inference itself runs in a local worker. External API prompts, if configured, go to the selected provider. Models may generate mistakes; topic rules are not a substitute for fact checking.
+
+### Legacy classifier (fallback only)
+
+OtaAI also retains the previously implemented **400-topic** reference library, synthetic training data, symbolic reasoning and a 414,408-parameter intent classifier. These parts are **not** allowed to answer before the generative model gets a chance.
+
+### Legacy fallback neural network
 
 - **414,408 real trainable neural parameters**: separate language-specific hashed word/character embeddings (4 × 4096 × 24), a 48-unit tanh hidden layer and 408 intent/topic outputs. This network uses gradient descent, not an invented weight count.
-- Neural training runs locally in a dedicated Web Worker, with 4 epochs on mobile and 6 on desktop. The page stays interactive while the old model answers normally.
+- Optional fallback classifier training runs locally in a dedicated Web Worker, with 4 epochs on mobile and 6 on desktop. It is not started at page load: it activates only if the generative engine is unavailable, conserving resources.
 - Where the browser permits it, model weights are cached in IndexedDB after training and reused on reload; otherwise the network retrains when opened again. Users can disable the network or request retraining from Settings.
 - A held-out mobile worker test reported **53% top-one accuracy on 600 synthetic validation questions** after 31,980 gradient updates. This is *not* an external benchmark, reliable probability calibration or a guarantee on real conversations.
 - The neural model is only allowed to suggest an answer when its margin and score meet strict thresholds and when no stronger verified result exists. It can abstain and fall back to other methods.
@@ -103,6 +122,8 @@ OtaAI recognizes a small **custom tag syntax**, parsed as text rather than HTML.
 - docs/neural-core.js: 414,408-parameter neural embeddings, hidden layer, manual gradient descent and evaluation.
 - docs/neural-worker.js: browser-based training, validation, inference and IndexedDB model cache.
 - docs/neural.js: main-thread neural status, opt-out, retraining and asynchronous prediction bridge.
+- docs/generative-worker.js: real generative model loading and token-by-token response generation on device.
+- docs/generative.js: user-configurable generative model routing, progress and cancellation.
 - docs/hybrid-reasoner.js: multi-topic retrieval and grounded response composition.
 - docs/world-topics.js, docs/world-facts-local.js: 200 new topics with EN/ES/PT/JA descriptions.
 - docs/composer.js: live contenteditable Markdown formatting and keyboard handling.
