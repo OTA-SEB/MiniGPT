@@ -396,3 +396,19 @@ select,input,textarea{accent-color:var(--accent)}
  #message.composer-editor{font-size:16px;padding:8px 10px;min-height:54px;max-height:170px}
  #message.composer-editor pre.composer-code{font-size:12px}
 }
+
+
+/* OtaAI custom tag rendering */
+.ota-time{display:inline-block;white-space:nowrap;font-variant-numeric:tabular-nums;border-bottom:1px dotted var(--accent);color:var(--accent-hi);font-weight:650}
+.ota-colored{font-weight:600}
+.ota-highlight{border-radius:4px;padding:1px 4px;background:color-mix(in srgb,var(--accent) 28%,var(--surface2));color:var(--text)}
+.ota-save{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 9px;background:var(--surface3);border:1px solid var(--line2);border-radius:8px;max-width:100%;font-size:.94em}
+.ota-save-button{background:var(--accent-dim);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:3px 8px;font-size:11px}
+.ota-save-button:disabled{opacity:.7}
+.ota-code-actions{display:flex;gap:7px;align-items:center}
+.ota-code-card{max-width:100%;min-width:0;width:100%}
+.ota-code-output{margin:0;padding:11px 13px;max-height:250px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px solid var(--line2);background:var(--surface2);color:var(--text);font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.ota-code-output[hidden]{display:none}
+.ota-run-frame{position:absolute;width:0;height:0;opacity:0;pointer-events:none;left:-99999px}
+.md-body .ota-code-card{margin:10px 0}
+@media(max-width:480px){.ota-code-card pre{font-size:11px;max-width:calc(100vw - 65px)}.ota-code-actions{gap:4px}.ota-code-actions button{font-size:10px;padding:5px}}
