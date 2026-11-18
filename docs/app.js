@@ -105,8 +105,8 @@ function bubble(role,text,meta=null,sentAt=Date.now()){
   const detail=element('div','origin-detail');detail.hidden=true;
   if(origin.mode==='api')detail.textContent='Model: '+(origin.model||'Not saved')+(origin.provider?' · '+origin.provider:'');
   else if(origin.mode==='generative')detail.textContent='Local generative model: '+(origin.model||'Unknown')+' · generated response';
-  else if(origin.mode==='neural')detail.textContent='Fallback classifier · match score: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Unavailable');
-  else if(origin.mode==='trained')detail.textContent='Estimated confidence: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Not available');
+  else if(origin.mode==='neural')detail.textContent=(origin.trigger||'Neural classifier was used only as fallback')+' · match score: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Unavailable');
+  else if(origin.mode==='trained')detail.textContent=(origin.trigger||'Statistical matcher was used as fallback')+' · estimated match: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Unavailable');
   else detail.textContent='Trigger: '+(origin.trigger||'Not recorded for this older message');
   button.addEventListener('click',()=>{
    detail.hidden=!detail.hidden;button.setAttribute('aria-expanded',String(!detail.hidden));
@@ -415,7 +415,7 @@ el('show-key').addEventListener('click',()=>{
  key.type=key.type==='password'?'text':'password';
  el('show-key').textContent=key.type==='password'?'Show key':'Hide key';
 });
-key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Key ready: external AI available':'No key: local model');
+key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'API key set: external generative AI goes first':'No API key: browser generative model goes first');
 
 
 const generatorSelect=el('generator-model'),generatorStatusLabel=el('generator-status');
