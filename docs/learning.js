@@ -19,10 +19,19 @@ function features(message){
 }
 function valid(x){return x&&[1,2,3,4].includes(x.version)&&Number.isFinite(x.turns)&&x.features&&typeof x.features==='object'&&!Array.isArray(x.features)&&Array.isArray(x.examples);}
 function newChatId(){return 'chat-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
+function cleanResponseMeta(value){
+ if(!value||typeof value!=='object')return null;
+ const mode=String(value.mode||'').slice(0,30);
+ if(!['trained','api','reference','fallback','reasoning','memory','recall'].includes(mode))return null;
+ return {mode,confidence:Number.isFinite(value.confidence)?Math.max(0,Math.min(100,value.confidence)):null,
+  trigger:String(value.trigger||'').slice(0,160),model:String(value.model||'').slice(0,100),
+  provider:String(value.provider||'').slice(0,35)};
+}
 function safeMessages(value){
  if(!Array.isArray(value))return [];
  return value.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string')
-   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,6000),lang:m.lang||'en'}));
+   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,6000),lang:m.lang||'en',
+    ...(m.role==='assistant'&&cleanResponseMeta(m.meta)?{meta:cleanResponseMeta(m.meta)}:{})}));
 }
 function createChatRecord(title='New conversation',messages=[]){
  const now=Date.now();
@@ -256,7 +265,7 @@ function cleanExamples(){
  brain.examples=brain.examples.filter(x=>x&&typeof x.a==='string'&&x.a.trim()&&!bad.includes(x.a.trim())&&Array.isArray(x.fs)&&x.fs.length);
  if(brain.examples.length>MAX_EXAMPLES)brain.examples=brain.examples.slice(-MAX_EXAMPLES);
 }
-export function learn(input,answer,topics=[],source='local',language='es'){
+export function learn(input,answer,topics=[],source='local',language='es',meta=null){
  const fs=features(input);
  brain.turns=(brain.turns||0)+1;
  rememberFact(input);
@@ -273,7 +282,8 @@ export function learn(input,answer,topics=[],source='local',language='es'){
    chat.title=String(input).replace(/\s+/g,' ').trim().slice(0,52)||'New conversation';
  }
  chat.messages.push({role:'user',content:String(input).slice(0,6000),lang:language},
-                    {role:'assistant',content:String(answer).slice(0,6000),lang:language});
+                    {role:'assistant',content:String(answer).slice(0,6000),lang:language,
+                     ...(cleanResponseMeta(meta)?{meta:cleanResponseMeta(meta)}:{})});
  chat.messages=chat.messages.slice(-MAX_CHAT_MESSAGES);
  chat.updatedAt=Date.now();
  syncActiveHistory();
