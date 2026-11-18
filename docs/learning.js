@@ -5,7 +5,7 @@ import { trainingTopics } from './fallback.js?v=2.0';
 import { aliasForTopic,romajiToKana } from './i18n.js?v=2.0';
 const FILE='minigpt-pesos.json',BACKUP='minigpt.pesos.v1';
 const MAX_EXAMPLES=180,MAX_HISTORY=48,MAX_FEATURES=6000;
-const blank=()=>({version:2,turns:0,features:{},examples:[],history:[],facts:{},seeded:false});
+const blank=()=>({version:2,turns:0,features:{},examples:[],history:[],facts:{},seeded:false,seedVersion:0});
 let brain=blank(),storageReady=null,saveTimer=null;
 const clean=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff ]+/g,' ').replace(/\s+/g,' ').trim();
 const ignored=new Set('un una unos unas el la los las de del a al y o en que por para con sin se es soy eres era esta este esto su tu mi me te lo le ya no si yo tu bro xd xddd pues como muy pero algo hay eso the this that and are for with i we you is to of can do like'.split(' '));
@@ -19,7 +19,7 @@ function features(message){
 function valid(x){return x&&(x.version===1||x.version===2)&&Number.isFinite(x.turns)&&x.features&&typeof x.features==='object'&&!Array.isArray(x.features)&&Array.isArray(x.examples);}
 function migrate(x){
  if(!valid(x))return blank();
- return {version:2,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),history:Array.isArray(x.history)?x.history.slice(-MAX_HISTORY):[],facts:x.facts&&typeof x.facts==='object'&&!Array.isArray(x.facts)?x.facts:{},seeded:!!x.seeded};
+ return {version:2,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),history:Array.isArray(x.history)?x.history.slice(-MAX_HISTORY):[],facts:x.facts&&typeof x.facts==='object'&&!Array.isArray(x.facts)?x.facts:{},seeded:!!x.seeded,seedVersion:Number.isFinite(x.seedVersion)?x.seedVersion:(x.seeded?2:0)};
 }
 function addWeight(key,id,amount=1){
  if(!key||!Number.isInteger(id)||id<0||id>=100)return;
@@ -27,13 +27,17 @@ function addWeight(key,id,amount=1){
  row[id]=Math.min(60,Math.max(0,Number(row[id])||0)+amount);
 }
 function seed(){
- if(brain.seeded)return;
+ if(brain.seedVersion>=3)return;
  const topics=trainingTopics();
  for(let id=0;id<topics.length;id++){
    const aliases=[...topics[id],...aliasForTopic(id,'en'),...aliasForTopic(id,'pt'),...aliasForTopic(id,'ja')];
    for(const alias of new Set(aliases)){
-     const f=features(alias);
-     for(const key of f)addWeight(key,id,key.startsWith('w:')?3:key.startsWith('b:')?1.5:0.35);
+     const variants=[alias];
+     if(!brain.seeded && /[a-z]/i.test(alias))variants.push('hablar de '+alias,'me gusta '+alias,'talk about '+alias,'fale sobre '+alias);
+     for(const variant of variants){
+       const f=features(variant);
+       for(const key of f)addWeight(key,id,key.startsWith('w:')?3.5:key.startsWith('b:')?1.2:0.3);
+     }
    }
  }
  // Semillas fonéticas: el romaji se conecta a los mismos temas que el japonés.
@@ -42,6 +46,7 @@ function seed(){
    for(const key of features(word))addWeight(key,+id,key.startsWith('w:')?5:0.5);
  }
  brain.seeded=true;
+ brain.seedVersion=3;
 }
 async function load(){
  let parsed=null;
@@ -183,7 +188,27 @@ export function recall(message,language='es'){
  }
  return best;
 }
-export function stats(){return {turns:brain.turns,examples:brain.examples.length,weights:Object.keys(brain.features).length,memory:Object.keys(brain.facts).length,history:brain.history.length,seeded:brain.seeded};}
+export function stats(){return {turns:brain.turns,examples:brain.examples.length,weights:Object.keys(brain.features).length,memory:Object.keys(brain.facts).length,history:brain.history.length,seeded:brain.seeded,seedVersion:brain.seedVersion};}
+export function inspectMemory(){
+ const facts=Object.entries(brain.facts).map(([key,info])=>({key,value:String(info?.value||''),date:info?.at||0}));
+ const history=getHistory().slice(-24).map(x=>({role:x.role,text:x.content.slice(0,160),lang:x.lang}));
+ return {facts,history};
+}
+export function inspectWeights(query='',limit=90){
+ const q=clean(query).replace(/ /g,'');
+ const items=[];
+ for(const [feature,topics] of Object.entries(brain.features)){
+  if(!topics||typeof topics!=='object')continue;
+  for(const [raw,weight] of Object.entries(topics)){
+   if(!Number.isFinite(Number(weight)))continue;
+   const id=Number(raw),name=trainingTopics()[id]?.[0]||String(id);
+   if(q&&!clean(feature).includes(q)&&!clean(name).includes(q)&&String(id)!==q)continue;
+   items.push({feature,topic:id,name,weight:Number(weight)});
+  }
+ }
+ items.sort((a,b)=>b.weight-a.weight||a.topic-b.topic);
+ return {total:items.length,items:items.slice(0,Math.max(1,Math.min(300,limit)))};
+}
 export async function exportWeights(){
  await ready();await save();
  const blob=new Blob([JSON.stringify(brain,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
