@@ -1,4 +1,5 @@
 // Cien conversaciones temáticas, cuatro respuestas por cada tema.
+import { detectLanguage,matchAliases,topicText,topicPhrase,localText } from './i18n.js';
 const rows=[
 ["panes,1+1,pan","dos panes","partirse en cuatro mitades","1+1=2 panes, pero al partirlos quedan cuatro mitades. 🍞|¡EL TEOREMA DEL PAN! XDDD|Dos panes enteros o cuatro mitades, bro.|Dos panes y una lógica impecable."],
 ["hola,holi,buenas,hey","MiniGPT","saludar","¡HOLAAAA, BROOO! 🤖|¡Buenas! ¿Qué hacemos hoy?|¡MiniGPT reportándose!|Saludo recibido, conversación activada."],
@@ -101,22 +102,33 @@ const rows=[
 ["bateria,batería,energia,energía","una batería","dar energía","¡BATERÍA AL RESCATE!|Queda una carga para otra misión.|El dispositivo pide enchufe.|Más energía, más posibilidades."],
 ["robot,robots,robotica,robótica","un robot","aprender una tarea","Bip bop, sistema listo.|Un robot no hace magia.|Sensores activados.|La robótica trae sorpresas."]
 ];
-const norm = x => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9+\u3040-\u30ff\u4e00-\u9faf]+/g,' ').trim();
+
 const counts=new Map();
 export const topicCount=rows.length;
-export function detectTopics(input){
- const text=' '+norm(input)+' ';
- return rows.map((r,i)=>({i,at:Math.min(...r[0].split(',').map(k=>{
-   const p=text.indexOf(' '+norm(k)+' ');return p<0?Infinity:p;
- }))})).filter(x=>Number.isFinite(x.at)).sort((a,b)=>a.at-b.at||a.i-b.i).slice(0,5).map(x=>x.i);
+export function detectTopics(input,previous="es"){
+ return matchAliases(input,previous,rows).map(x=>x.id);
 }
-export function fallback(input,learned=[]){
- const selected=[...new Set([...detectTopics(input),...learned.filter(i=>Number.isInteger(i)&&i>=0&&i<rows.length)])].slice(0,5);
- if(!selected.length)return 'No puedo responder ahora mismo.';
- const chosen=selected.map(i=>rows[i]);
- const parts=chosen.map((r,j)=>{const id=selected[j],n=counts.get(id)||0;counts.set(id,n+1);return r[3].split('|')[n%4];});
- if(chosen.length===1)return parts[0];
- const others=chosen.slice(2).map(r=>r[1]);
- const intro=chosen[0][1]+' se cruza con '+chosen[1][1]+(others.length?', junto a '+others.join(', '):'')+'.';
- return '🧪 '+intro+' XDDD\n\n'+parts.join(' ');
+export function fallback(input,learned=[],context=detectLanguage(input)){
+ const direct=matchAliases(input,context.primary,rows);
+ const all=[...direct];
+ for(const id of learned)if(Number.isInteger(id)&&id>=0&&id<rows.length&&!all.some(x=>x.id===id))all.push({id,lang:context.primary});
+ const chosen=all.slice(0,5),primary=context.primary;
+ if(!chosen.length)return (localText[primary]||localText.es).unknown;
+ const parts=chosen.map(x=>{
+   const count=counts.get(x.id)||0;counts.set(x.id,count+1);
+   const lang=context.mixed?x.lang:primary;
+   return topicText(x.id,lang,count)||rows[x.id][3].split("|")[count%4];
+ });
+ if(chosen.length===1){
+   // When the user explicitly mixes languages in one topic, show both.
+   if(context.mixed&&context.languages.length>1){
+     const alternative=context.languages.find(l=>l!==chosen[0].lang);
+     const extra=topicText(chosen[0].id,alternative,0);
+     if(extra&&extra!==parts[0])return parts[0]+"\n"+extra;
+   }
+   return parts[0];
+ }
+ const labels=chosen.map(x=>topicPhrase(x.id,primary)||rows[x.id][1]);
+ const intro=(localText[primary]||localText.es).mix(labels[0],labels[1],labels.slice(2));
+ return "🧪 "+intro+" XDDD\n\n"+parts.join(" ");
 }
