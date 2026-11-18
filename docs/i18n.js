@@ -71,22 +71,24 @@ export function topicText(index,lang,variant=0){
  const row=data[index];if(!row||lang==="es")return null;
  const j=lang==="en"?3:lang==="pt"?4:5;
  const name=topicPhrase(index,lang)||"";
- if(variant%4===0)return row[j];
  if(lang==="en")return [
  row[j], "Bro, "+name+" is back in the conversation. XDDD",
  "I could talk about "+name+" all day.",
- "Okay, "+name+" just made this chat more interesting!"
- ][variant%4];
+ "Okay, "+name+" just made this chat more interesting!",
+ "Another day, another unexpected adventure with "+name+"!"
+ ][variant%5];
  if(lang==="pt")return [
  row[j],"Bro, "+name+" voltou para a conversa. KKKK",
  "Dá para conversar sobre "+name+" por horas.",
- "Eita, "+name+" deixou essa conversa ainda melhor!"
- ][variant%4];
+ "Eita, "+name+" deixou essa conversa ainda melhor!",
+ "Mais um dia, mais uma aventura inesperada com "+name+"!"
+ ][variant%5];
  return [
  row[j], "また"+name+"の話だね！XDDD",
  name+"なら、まだまだ話せるよ！",
- "おっ、"+name+"で盛り上がってきた！"
- ][variant%4];
+ "おっ、"+name+"で盛り上がってきた！",
+ "今日も"+name+"で新しい冒険が始まったね！"
+ ][variant%5];
 }
 export const localText={
  es:{unknown:"No puedo responder ahora mismo.",mix:(a,b,others)=>a+" se cruza con "+b+(others.length?", junto a "+others.join(", "):"")+".",reset:"¡Charla reiniciada! 🤖",placeholder:"Escríbeme, bro...",status:"⚙️ Mini modelo local"},
