@@ -1,5 +1,5 @@
 // Diccionario local: idiomas y variantes, sin API. El orden coincide con los 100 temas.
-import {extraTopics} from './extra-topics.js?v=1.0';
+import {extraTopics} from './extra-topics.js?v=1.2';
 import {worldTopics} from './world-topics.js?v=1.2';
 import {worldLocalFacts} from './world-facts-local.js?v=1.2';
 export const LANG_NAMES={"es":"Español","en":"English","pt":"Português","ja":"日本語"};
