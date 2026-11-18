@@ -8,7 +8,7 @@ import { renderMarkdown } from './markdown.js?v=1.4';
 import { memoryBlocks } from './ota-tags.js?v=1.4';
 import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.4';
 import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.4';
-import { setupComposer } from './composer.js?v=1.4';
+import { setupComposer } from './composer.js?v=1.6';
 import { generateLocally,chooseGenerativeModel,generativeModel,watchGenerative,cancelGeneration,resetGenerativeWorker } from './generative.js?v=1.5';
 import {routeResponse} from './response-router.js?v=1.6';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.4';
@@ -121,6 +121,7 @@ function bubble(role,text,meta=null,sentAt=Date.now()){
  }});
  item.append(body);
  chat.append(item);chat.scrollTop=chat.scrollHeight;
+ return item;
 }
 const workspace=document.querySelector('.workspace');
 const mobile=()=>!!window.matchMedia?.('(max-width: 860px)').matches;
@@ -526,13 +527,12 @@ async function ask(history,secret,ctx){
 form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy)return;
  const value=composer.value().trim();if(!value)return;
- for(const entry of memoryBlocks(value))saveMemoryFact(entry.name||entry.content.slice(0,50),entry.content);
  busy=true;el('send').disabled=true;composer.disable(true);composer.clear();updateComposer();
  el('typing-status').textContent='OtaAI is responding…';
  const ctx=detectLanguage(value,lastLanguage||'es');lastLanguage=ctx.primary;
  
  document.documentElement.lang=lastLanguage;
- bubble('user',value);messages.push({role:'user',content:value});
+ const pendingUserBubble=bubble('user',value);messages.push({role:'user',content:value});
  try{
   await ready();
   // Generative response first, deterministic/classifier answers LAST.
@@ -547,9 +547,15 @@ form.addEventListener('submit',async event=>{
    local:()=>tryGenerativeAnswer(ctx),
    fallback:()=>localAnswer(value,ctx)
   });
-  if(routed.cancelled){state('Generation cancelled');return;}
+  if(routed.cancelled){
+   // Stopping the generative engine must neither trigger canned replies nor lose the draft.
+   pendingUserBubble.remove();messages.pop();composer.restore(value);
+   state('Generation cancelled · draft restored');return;
+  }
   const {result,source}=routed;
   showResult(result,ctx);
+  // Only persist <save> facts after a real response, never on an aborted draft.
+  for(const entry of memoryBlocks(value))saveMemoryFact(entry.name||entry.content.slice(0,50),entry.content);
   const topics=detectTopics(value,ctx.primary);
   learn(value,result.text,topics.length?topics:predictTopics(value),source,languageKey(ctx),result);
   if(driveConnected())el('cloud-mini-status').textContent='● Unsaved local changes';
