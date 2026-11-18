@@ -1,4 +1,4 @@
-import { answerCodeRequest,inspectCodeText,supportedCodeLanguages } from './code-knowledge.js?v=1.3';
+import { answerCodeRequest,inspectCodeText,supportedCodeLanguages } from './code-knowledge.js?v=1.4';
 // OtaAI 3.0 - bounded arithmetic, logic and static code inspection. No eval().
 export function reason(input,lang='en'){
  const raw=String(input||'').trim();if(raw.length>6000)return null;
