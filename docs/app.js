@@ -2,7 +2,7 @@ import { fallback,detectTopics,topicCount } from './fallback.js?v=3.0';
 import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,clearChat,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=3.0';
 import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=3.0';
 import { reason } from './reasoning.js?v=3.0';
-import { PERSONA } from './personality.js';
+import { PERSONA } from './personality.js?v=3.0';
 import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=3.0';
 
 const el=id=>document.getElementById(id);
@@ -43,7 +43,13 @@ function localAnswer(value,ctx){
  if(thought)return {text:thought.text,mode:'reasoning',confidence:thought.confidence,kind:thought.kind};
  const direct=detectTopics(value,ctx.primary);
  const decision=inferDefault(value,ctx.primary);
- // Si el usuario mezcla varios temas, respetar la composición de 2 a 5 temas.
+ // A direct technical concept match takes precedence over an unrelated intent.
+ // A dictionary explanation is NOT reported as an 80/90/95%-confident prediction.
+ if(direct.length===1&&direct[0]>=100&&(decision.id!=='topic:'+direct[0]||decision.percent<Number(threshold.value))){
+   const answer=respondDefault({id:'topic:'+direct[0],percent:80,lang:ctx.primary},ctx.primary);
+   if(answer)return {text:answer,mode:'reference',confidence:null};
+ }
+ // Preserve combinations of two to five different topics.
  if(direct.length<=1 && decision.percent>=Number(threshold.value)){
    const reply=respondDefault(decision,ctx.primary);
    if(reply)return {text:reply,mode:'trained',confidence:decision.percent,intent:decision.id};
@@ -55,17 +61,18 @@ function localAnswer(value,ctx){
 }
 function resultMeta(result){
  if(result.mode==='reasoning')return '🧮 Reasoning engine · '+result.kind+' · deterministic';
- if(result.mode==='trained')return '🧠 Modelo entrenado · '+result.confidence+' % coincidencia estimada';
- if(result.mode==='memory')return '🗂️ Respuesta desde la memoria';
- if(result.mode==='recall')return '💾 Ejemplo recordado';
- if(result.mode==='api')return '🌐 Modelo externo';
- return '🧩 Respuesta temática automática';
+ if(result.mode==='reference')return '📚 Curated technical reference · no confidence estimate';
+ if(result.mode==='trained')return '🧠 Trained model · '+result.confidence+'% estimated match';
+ if(result.mode==='memory')return '🗂️ Answer from saved memory';
+ if(result.mode==='recall')return '💾 Recalled example';
+ if(result.mode==='api')return '🌐 External model';
+ return '🧩 Automatic topic fallback';
 }
 function showResult(result,ctx){
  bubble('assistant',result.text,resultMeta(result));
  messages.push({role:'assistant',content:result.text});
- el('confidence-display').textContent=result.mode==='trained'?'Coincidencia: '+result.confidence+' % (estimada)':result.mode==='memory'?'Memoria utilizada':result.mode==='api'?'API externa':result.mode==='reasoning'?'Razonamiento verificado':'Coincidencia insuficiente';
- state(result.mode==='trained'?'🧠 Modelo local · '+result.confidence+' % aprox.':result.mode==='memory'?'🗂️ Memoria local':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Razonamiento local':localText[ctx.primary].status);
+ el('confidence-display').textContent=result.mode==='trained'?'Match: '+result.confidence+'% (estimated)':result.mode==='memory'?'Memory used':result.mode==='api'?'External API':result.mode==='reasoning'?'Verified reasoning':result.mode==='reference'?'Reference answer':'Low match';
+ state(result.mode==='trained'?'🧠 Local model · '+result.confidence+'% approx.':result.mode==='memory'?'🗂️ Local memory':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Local reasoning':result.mode==='reference'?'📚 Technical reference':localText[ctx.primary].status);
 }
 const safeText=(s)=>String(s||'').toLowerCase();
 function inspectorRow(container,title,detail,subtitle='',type='memory'){
