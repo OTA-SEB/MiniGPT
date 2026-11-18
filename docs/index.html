@@ -7,7 +7,7 @@
 <meta name="description" content="OtaAI — a local-first AI workspace with conversations, Markdown, and optional Google Drive backup.">
 <title>OtaAI 1.0</title>
 <link rel="icon" href="./otaai-logo.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./style.css?v=1.0">
+<link rel="stylesheet" href="./style.css?v=1.1">
 <script async defer src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
@@ -139,7 +139,7 @@
    <div class="composer-area">
     <div class="composer-box">
      <form id="form" autocomplete="off">
-      <textarea id="message" maxlength="6000" rows="2" placeholder="Message OtaAI..." aria-label="Write a message" required></textarea>
+      <div id="message" class="composer-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Write a message" data-placeholder="Message OtaAI..." spellcheck="true"></div>
       <button id="send" type="submit" title="Send message" aria-label="Send message">➤</button>
      </form>
      <div class="composer-footer sr-only"><span id="typing-status" aria-live="polite"></span><span id="confidence-display"></span></div>
@@ -156,6 +156,6 @@
   </form>
  </dialog>
 </main>
-<script type="module" src="./app.js?v=1.0"></script>
+<script type="module" src="./app.js?v=1.1"></script>
 </body>
 </html>
