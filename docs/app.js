@@ -151,15 +151,26 @@ function renderInspector(){
  container.replaceChildren();
  if(inspectorTab==='memory'){
    const data=inspectMemory();
-   const facts=data.facts.filter(x=>safeText(x.key+' '+x.value).includes(q));
+   const facts=data.facts.filter(x=>safeText(x.label+' '+x.key+' '+x.value).includes(q));
    const history=data.history.filter(x=>safeText(x.role+' '+x.text).includes(q));
-   summary.textContent=data.facts.length+' recuerdos guardados · '+Math.floor(getHistory().length/2)+' intercambios recientes';
-   container.append(element('div','inspector-section-title','🗂️ Datos recordados'));
-   if(!facts.length)container.append(element('div','empty-state',q?'Sin coincidencias.':'Todavía no hay datos recordados. Prueba «me gusta el anime».'));
-   for(const fact of facts)inspectorRow(container,fact.key,fact.value,'Guardado en este navegador');
-   container.append(element('div','inspector-section-title','💬 Conversación reciente'));
-   if(!history.length)container.append(element('div','empty-state',q?'Ningún mensaje coincide.':'Aún no hay mensajes guardados.'));
-   for(const h of history)inspectorRow(container,h.role==='user'?'Tú':'MiniGPT',h.text,h.lang||'', 'memory');
+   summary.textContent=data.facts.length+' memories · '+data.chats+' conversations · '+Math.floor(getHistory().length/2)+' exchanges in this chat';
+   container.append(element('div','inspector-section-title','Saved across all conversations'));
+   if(!facts.length)container.append(element('div','empty-state',q?'No memories match your search.':'No saved facts yet. Add one above or tell MiniGPT something to remember.'));
+   for(const fact of facts){
+    const card=element('div','memory-card'),heading=element('div','fact-head');
+    const remove=element('button','fact-delete','✕');
+    remove.type='button';remove.title='Forget memory';remove.setAttribute('aria-label','Forget '+fact.label);
+    remove.addEventListener('click',()=>{
+      if(window.confirm&&!window.confirm('Forget "'+fact.label+'"?'))return;
+      if(deleteMemoryFact(fact.key)){refreshLearning();state('Memory removed');}
+    });
+    heading.append(element('strong','',fact.label),remove);
+    card.append(heading,element('span','',fact.value),element('small','','Stored locally'));
+    container.append(card);
+   }
+   container.append(element('div','inspector-section-title','Recent messages in this conversation'));
+   if(!history.length)container.append(element('div','empty-state',q?'No messages match.':'This conversation has no saved messages yet.'));
+   for(const h of history)inspectorRow(container,h.role==='user'?'You':'MiniGPT',h.text,h.lang||'','memory');
  }else{
    const learned=inspectWeights(q,70),base=defaultWeightView(q,70);
    summary.textContent=learned.total+' asociaciones temáticas coincidentes · '+trainingStats.weights+' conexiones entrenadas de base';
@@ -179,6 +190,7 @@ function renderInspector(){
 }
 function setInspectorTab(next){
  inspectorTab=next;
+ el('memory-form').hidden=next!=='memory';
  for(const tab of ['memory','weights']){
   const active=next===tab,button=el('tab-'+tab);
   button.classList.toggle('active',active);
@@ -197,6 +209,13 @@ el('inspector-close').addEventListener('click',()=>toggleInspector(false));
 el('tab-memory').addEventListener('click',()=>setInspectorTab('memory'));
 el('tab-weights').addEventListener('click',()=>setInspectorTab('weights'));
 el('inspector-search').addEventListener('input',renderInspector);
+el('memory-form').addEventListener('submit',async event=>{
+ event.preventDefault();if(busy)return;await ready();
+ if(saveMemoryFact(el('memory-key').value,el('memory-value').value)){
+  el('memory-key').value='';el('memory-value').value='';
+  refreshLearning();state('Memory saved locally');
+ }
+});
 el('settings-toggle').addEventListener('click',()=>{
  const box=el('settings');box.hidden=!box.hidden;
  el('settings-toggle').setAttribute('aria-expanded',String(!box.hidden));
@@ -204,7 +223,7 @@ el('settings-toggle').addEventListener('click',()=>{
 el('clear').addEventListener('click',startNewConversation);
 el('forget-memory').addEventListener('click',async()=>{
  if(busy)return;
- if(typeof window.confirm==='function'&&!window.confirm('¿Borrar recuerdos, conversaciones y pesos aprendidos? Se conservarán los pesos predeterminados.'))return;
+ if(typeof window.confirm==='function'&&!window.confirm('Clear all saved chats, memories and learning? Built-in knowledge will remain.'))return;
  await forgetMemory();renderActiveChat();refreshLearning();state('Memory and learning cleared');
 });
 el('download-weights').addEventListener('click',()=>{void exportWeights();});
@@ -218,9 +237,9 @@ el('weights-file').addEventListener('change',async e=>{
 provider.addEventListener('change',()=>model.value=defaults[provider.value]);
 el('show-key').addEventListener('click',()=>{
  key.type=key.type==='password'?'text':'password';
- el('show-key').textContent=key.type==='password'?'Mostrar clave':'Ocultar clave';
+ el('show-key').textContent=key.type==='password'?'Show key':'Hide key';
 });
-key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Clave cargada: modelo externo disponible':'Sin clave: cerebro local');
+key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Key ready: external AI available':'No key: local model');
 document.querySelectorAll('[data-try]').forEach(button=>button.addEventListener('click',()=>{
  if(busy)return;input.value=button.dataset.try;form.requestSubmit();
 }));
