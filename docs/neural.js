@@ -1,5 +1,5 @@
 // Non-blocking bridge to OtaAI's local neural Worker. Never sends chat text to a server.
-import {NEURAL_PARAMETER_COUNT} from './neural-core.js?v=1.3';
+import {NEURAL_PARAMETER_COUNT} from './neural-core.js?v=1.4';
 let worker=null,ready=false,state='off',enabled=true,report=null,requestId=0;
 const listeners=new Set(),pending=new Map();
 try{enabled=localStorage.getItem('otaai.neural.enabled')!=='false';}catch{}
@@ -15,7 +15,7 @@ function boot(){
  if(!enabled||worker)return;
  if(typeof Worker==='undefined'){state='unsupported';tell();return;}
  try{
-  worker=new Worker('./neural-worker.js?v=1.3',{type:'module'});
+  worker=new Worker('./neural-worker.js?v=1.4',{type:'module'});
   state='loading';
   worker.addEventListener('message',event=>{
    const m=event.data||{};
