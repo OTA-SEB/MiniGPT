@@ -37,7 +37,7 @@ function seed(){
    }
  }
  // Semillas fonéticas: el romaji se conecta a los mismos temas que el japonés.
- const extras={1:'konnichiwa konichiwa konbanwa ohayou ohayo',6:'neko',7:'inu',8:'niwatori',27:'nihongo',28:'nihon tokyo',59:'gohan sushi',63:'mizu',77:'arigatou arigato',78:'sayonara sayounara'};
+ const extras={1:'konnichiwa konichiwa konbanwa ohayou ohayo',6:'neko',7:'inu',8:'niwatori',27:'nihongo',28:'nihon tokyo',64:'gohan',62:'sushi',65:'mizu',77:'arigatou arigato',78:'sayonara sayounara'};
  for(const [id,words] of Object.entries(extras))for(const word of words.split(' ')){
    for(const key of features(word))addWeight(key,+id,key.startsWith('w:')?5:0.5);
  }
