@@ -1,25 +1,25 @@
-// MiniGPT 3.0 - mini modelo entrenado sin conexión en corpus sintético curado.
+// OtaAI 3.0 - mini modelo entrenado sin conexión en corpus sintético curado.
 // Clasificador de similitud semántica superficial: NO es un LLM ni probabilidad calibrada.
 import { normalize,aliasForTopic } from './i18n.js?v=3.0';
 import { extraTopics } from './extra-topics.js?v=3.0';
 import { trainingTopics } from './fallback.js?v=3.0';
 const DIALOG={
  es:{
-  greeting:{q:['hola','holaa','holaaa','holi','buenas','hey','hola bro','ey bro','buenos dias','buenas tardes','buenas noches','que hubo','saludos','que mas','hola minigpt'],a:['¡Holaaa! 🤖 ¿Qué tal va tu día?','¡Buenas, bro! ¿Qué cuentas? 😎','¡Ey! Aquí ando, listo para conversar. XDDD','¡Hola! ¿Qué aventura toca hoy?']},
+  greeting:{q:['hola','holaa','holaaa','holi','buenas','hey','hola bro','ey bro','buenos dias','buenas tardes','buenas noches','que hubo','saludos','que mas','hola otaai'],a:['¡Holaaa! 🤖 ¿Qué tal va tu día?','¡Buenas, bro! ¿Qué cuentas? 😎','¡Ey! Aquí ando, listo para conversar. XDDD','¡Hola! ¿Qué aventura toca hoy?']},
   wellbeing:{q:['como estas','como andas','como te va','que tal estas','que tal te va','como te encuentras','como va todo','que tal andas','como te sientes','que tal todo','como estas tu','como andas tu','como va tu dia'],p:['','hola ','holaa ','hey ','buenas ','oye ','bro '],s:['',' hoy',' el dia de hoy',' en el dia de hoy',' hoy bro',' bro',' en este dia'],a:['¡Holaaa! 🤖 Listo para charlar hoy, ¿y tú cómo andas?','¡Ey, bro! Todo preparado por aquí. ¿Cómo te está yendo a ti?','¡Buenas! Aquí sigo, con ganas de conversar. ¿Qué tal tu día?']},
   thanks:{q:['gracias','muchas gracias','te agradezco','gracias bro','mil gracias','gracias por ayudar','graciasss'],a:['¡De nada, bro! 🤖','¡Con gusto! XDDD','¡Para eso estamos! 😎']},
   farewell:{q:['adios','hasta luego','nos vemos','chao','bye','me voy','hasta manana','me despido'],a:['¡Chao, bro! 👋','¡Nos vemos! Que tengas un buen día.','¡Hasta la próxima aventura! 🤖']},
-  identity:{q:['quien eres','que eres','como te llamas','eres una ia','presentate','quien es minigpt'],a:['¡Soy MiniGPT! 🤖 Un pequeño chatbot que aprende asociaciones y recuerda cosas localmente.','Me llamo MiniGPT, y mi cerebro vive en tu navegador. XDDD']},
+  identity:{q:['quien eres','que eres','como te llamas','eres una ia','presentate','quien es otaai'],a:['¡Soy OtaAI! 🤖 Un pequeño chatbot que aprende asociaciones y recuerda cosas localmente.','Me llamo OtaAI, y mi cerebro vive en tu navegador. XDDD']},
   abilities:{q:['que puedes hacer','que sabes hacer','como funcionas','que haces','para que sirves','cuales son tus funciones'],a:['Puedo conversar sobre mis temas, recordar lo que me cuentas y aprender asociaciones. No soy un modelo gigante. 🤖','Tengo memoria local, temas aprendidos e idiomas. ¡Pruébame con algo!']},
   feelings:{q:['estoy bien','me encuentro bien','me siento bien','estoy feliz','que bueno','genial','super bien'],a:['¡Qué bueno! 😎 ¿Qué te hizo el día?','¡Me alegra leer eso! ¿Qué sigue, bro?']},
   smalltalk:{q:['que haces hoy','que andas haciendo','estas ahi','seguimos hablando','quiero hablar','hablemos','dime algo'],a:['¡Aquí estoy, bro! ¿De qué hablamos? 🤖','¡Listo para otra charla! XDDD']}
  },
  en:{
-  greeting:{q:['hello','hellooo','hi','hey','hey bro','hello bro','hi there','good morning','good afternoon','good evening','greetings','yo','hello minigpt'],a:['Hey, bro! 🤖 How is your day going?','Hello! What should we talk about today?','Hey! Ready for another chat. XDDD']},
+  greeting:{q:['hello','hellooo','hi','hey','hey bro','hello bro','hi there','good morning','good afternoon','good evening','greetings','yo','hello otaai'],a:['Hey, bro! 🤖 How is your day going?','Hello! What should we talk about today?','Hey! Ready for another chat. XDDD']},
   wellbeing:{q:['how are you','how are you doing','how are things','how is it going','how do you feel','how have you been','hows your day going','how are you feeling','are you doing well','how are you today'],p:['','hello ','hi ','hey ','hey bro ','yo '],s:['',' today',' on this fine day',' right now',' today bro',' this morning',' this evening'],a:["Hey! I'm ready to chat today. How are you doing? 🤖","Hello! All systems running over here. How's your day?","I'm here and ready to talk, bro! What's up?"]},
   thanks:{q:['thanks','thank you','thanks a lot','thank you so much','thanks bro','cheers','much appreciated'],a:["You're welcome, bro! 🤖","Anytime! XDDD","Glad I could help!"]},
   farewell:{q:['bye','goodbye','see you','see you later','gotta go','take care','good night'],a:['See you later, bro! 👋','Bye! Have a nice day.','Catch you next time! 🤖']},
-  identity:{q:['who are you','what are you','whats your name','tell me about yourself','introduce yourself','are you an ai'],a:["I'm MiniGPT! 🤖 A small local chatbot with memory and learned associations.","MiniGPT here! I run a tiny local brain in your browser."]},
+  identity:{q:['who are you','what are you','whats your name','tell me about yourself','introduce yourself','are you an ai'],a:["I'm OtaAI! 🤖 A small local chatbot with memory and learned associations.","OtaAI here! I run a tiny local brain in your browser."]},
   abilities:{q:['what can you do','what do you know','how do you work','what are your features','what can we talk about'],a:["I can chat about familiar topics, store local memories, and learn from our conversation. 🤖","I have a local model, memory and a few languages. Give me a topic!"]},
   feelings:{q:['im good','im fine','feeling great','i am happy','doing well','great thanks'],a:["That's great! What made your day? 😎","Nice! What's next?"]},
   smalltalk:{q:['what are you doing','are you there','lets talk','say something','lets chat','what are you doing today'],a:["I'm right here, ready to chat! 🤖","Let's talk! What's on your mind?"]}
@@ -29,7 +29,7 @@ const DIALOG={
   wellbeing:{q:['como voce esta','como esta voce','como vai voce','como voce vai','como esta tudo','como vai','tudo bem com voce','como voce se sente','como voce esta indo','como voce esta hoje'],p:['','ola ','oi ','oie ','e ai ','bro '],s:['',' hoje',' no dia de hoje',' nesta tarde',' meu amigo',' bro'],a:['Oiii! Estou pronto para conversar. E você, como está? 🤖','Tudo certo por aqui, bro! Como vai seu dia?','Olá! E aí, conta como você está!']},
   thanks:{q:['obrigado','obrigada','muito obrigado','valeu','brigado','agradeco','valeu bro'],a:['De nada, bro! 🤖','Imagina! KKKK','Tamo junto!']},
   farewell:{q:['tchau','ate logo','ate mais','adeus','vou embora','nos vemos','boa noite'],a:['Tchau, bro! 👋','Até mais! Tenha um ótimo dia.','A gente se vê! 🤖']},
-  identity:{q:['quem e voce','o que e voce','qual e seu nome','voce e uma ia','se apresente','quem e minigpt'],a:['Sou o MiniGPT! 🤖 Um pequeno chatbot com memória e aprendizado local.','MiniGPT aqui! Meu cérebro funciona no seu navegador.']},
+  identity:{q:['quem e voce','o que e voce','qual e seu nome','voce e uma ia','se apresente','quem e otaai'],a:['Sou o OtaAI! 🤖 Um pequeno chatbot com memória e aprendizado local.','OtaAI aqui! Meu cérebro funciona no seu navegador.']},
   abilities:{q:['o que voce faz','o que voce sabe fazer','como funciona','quais sao suas funcoes','sobre o que conversamos'],a:['Posso conversar, guardar memórias locais e aprender associações. 🤖','Tenho um modelo local, memória e vários idiomas!']},
   feelings:{q:['estou bem','estou otimo','estou feliz','tudo bem','muito bem'],a:['Que bom! 😎 Conta mais!','Aí sim! Como foi seu dia?']},
   smalltalk:{q:['o que voce esta fazendo','vamos conversar','esta ai','fale comigo','diz alguma coisa'],a:['Estou aqui, pronto para conversar! 🤖','Bora bater um papo!']}
@@ -39,7 +39,7 @@ const DIALOG={
   wellbeing:{q:['元気ですか','お元気ですか','今日は元気ですか','調子はどう','最近どう','元気','今日はどう','こんにちは 元気ですか','konnichiwa genki desu ka','genki desu ka','kyou wa genki desu ka','konnichiwa kyou wa genki desu ka','ogenki desu ka'],p:['','こんにちは ','やあ ','konnichiwa ','ohayou '],s:['',' 今日',' 今日は',' kyou',' kyou wa',' bro'],a:['こんにちは！元気に会話できるよ。君はどう？🤖','やっほー！今日は何を話そう？調子はどう？','話す準備はできてるよ！今日はどう？']},
   thanks:{q:['ありがとう','どうもありがとう','感謝します','助かった','arigatou','arigato'],a:['どういたしまして！🤖','こちらこそ、ありがとう！','いつでもどうぞ！']},
   farewell:{q:['さようなら','またね','じゃあね','バイバイ','おやすみ','sayonara','sayounara','oyasumi'],a:['またね！👋','じゃあね！いい一日を！','また話そうね！🤖']},
-  identity:{q:['あなたは誰','君は誰','名前は何','ミニGPTとは','何者','kimi wa dare','anata wa dare'],a:['僕はMiniGPT！🤖 ブラウザで動く小さなチャットボットだよ。','MiniGPTだよ！少しずつ学習しているんだ。']},
+  identity:{q:['あなたは誰','君は誰','名前は何','OtaAIとは','何者','kimi wa dare','anata wa dare'],a:['僕はOtaAI！🤖 ブラウザで動く小さなチャットボットだよ。','OtaAIだよ！少しずつ学習しているんだ。']},
   abilities:{q:['何ができる','何を知ってる','どうやって動く','できること','nani ga dekiru'],a:['会話したり、覚えたり、少しずつ学んだりできるよ！🤖','記憶と小さなローカルモデルがあるよ！']},
   feelings:{q:['元気だよ','大丈夫','いい感じ','うれしい','genki desu'],a:['いいね！😎 何があったの？','よかった！今日は何をする？']},
   smalltalk:{q:['何してる','話そう','いる','何か話して','hanasou'],a:['ここにいるよ！何を話そう？🤖','じゃあ、話そう！']}
