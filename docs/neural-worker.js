@@ -1,6 +1,6 @@
 // OtaAI local neural training/inference runs in a Worker to avoid freezing chat.
-import { NeuralIntentNet,NEURAL_VERSION,NEURAL_PARAMETER_COUNT,labelIndex } from './neural-core.js?v=1.3';
-import { neuralTrainingExamples } from './default-model.js?v=1.3';
+import { NeuralIntentNet,NEURAL_VERSION,NEURAL_PARAMETER_COUNT,labelIndex } from './neural-core.js?v=1.4';
+import { neuralTrainingExamples } from './default-model.js?v=1.4';
 const CACHE_NAME='otaai-neural-v1',STORE='weights',KEY='otaai-400-v1';
 let net=null,ready=false,starting=false,validation=null,trainingEpochs=0;
 function status(state,extra={}){
