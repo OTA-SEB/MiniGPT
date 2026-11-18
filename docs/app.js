@@ -12,9 +12,9 @@ const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'
 const defaults={openrouter:'openrouter/free',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash'};
 const messages=[];let busy=false,lastLanguage='en',inspectorTab='memory';
 const threshold=el('confidence-threshold');
-try{const saved=localStorage.getItem('minigpt.threshold');if(['80','90','95'].includes(saved))threshold.value=saved;}catch{}
+try{const saved=localStorage.getItem('otaai.threshold')||localStorage.getItem('minigpt.threshold');if(['80','90','95'].includes(saved))threshold.value=saved;}catch{}
 threshold.addEventListener('change',()=>{
- try{localStorage.setItem('minigpt.threshold',threshold.value);}catch{}
+ try{localStorage.setItem('otaai.threshold',threshold.value);}catch{}
  el('confidence-display').textContent='Threshold: '+threshold.value+' %';
 });
 
@@ -326,7 +326,7 @@ function renderInspector(){
    }
    container.append(element('div','inspector-section-title','Recent messages in this conversation'));
    if(!history.length)container.append(element('div','empty-state',q?'No messages match.':'This conversation has no saved messages yet.'));
-   for(const h of history)inspectorRow(container,h.role==='user'?'You':'MiniGPT',h.text,h.lang||'','memory');
+   for(const h of history)inspectorRow(container,h.role==='user'?'You':'OtaAI',h.text,h.lang||'','memory');
  }else{
    const learned=inspectWeights(q,70),base=defaultWeightView(q,70);
    summary.textContent=learned.total+' asociaciones temáticas coincidentes · '+trainingStats.weights+' conexiones entrenadas de base';
