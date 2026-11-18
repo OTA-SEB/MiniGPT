@@ -2,6 +2,7 @@
 // Clasificador de similitud semántica superficial: NO es un LLM ni probabilidad calibrada.
 import { normalize,aliasForTopic } from './i18n.js?v=1.0';
 import { extraTopics } from './extra-topics.js?v=1.0';
+import { worldTopics } from './world-topics.js?v=1.2';
 import { trainingTopics } from './fallback.js?v=1.0';
 const DIALOG={
  es:{
@@ -106,14 +107,35 @@ const TOPIC_TEMPLATES={
 };
 const CODE_PROMPTS={
  en:['write code about {x}','how to use {x} in programming','example of {x} in code',
- 'why use {x} when coding','how to debug {x}','implement {x}'],
+ 'why use {x} when coding','how to debug {x}','implement {x}',
+ 'optimize {x}','refactor code with {x}','common mistakes with {x}','test {x}',
+ 'performance of {x}','best practice for {x}','compare {x} with alternatives',
+ 'when should I avoid {x}','write a unit test for {x}','understand {x} deeply',
+ 'design a solution using {x}','trace the flow of {x}','how to document {x}',
+ 'show the syntax of {x}','analyze complexity of {x}','explain edge cases for {x}'],
  es:['escribe código sobre {x}','cómo usar {x} al programar','ejemplo de {x} en código',
- 'por qué usar {x} programando','cómo depurar {x}','implementar {x}'],
+ 'por qué usar {x} programando','cómo depurar {x}','implementar {x}',
+ 'optimiza {x}','refactoriza código con {x}','errores frecuentes con {x}','prueba {x}',
+ 'rendimiento de {x}','buenas prácticas para {x}','compara {x} con alternativas',
+ 'cuándo evitar {x}','escribe una prueba para {x}','comprender {x} a fondo',
+ 'diseña una solución usando {x}','traza el flujo de {x}','cómo documentar {x}',
+ 'muestra la sintaxis de {x}','analiza la complejidad de {x}','explica casos límite de {x}'],
  pt:['escreva código sobre {x}','como usar {x} na programação','exemplo de {x} em código',
- 'por que usar {x} ao programar','como depurar {x}','implementar {x}'],
+ 'por que usar {x} ao programar','como depurar {x}','implementar {x}',
+ 'otimize {x}','refatore código com {x}','erros comuns com {x}','teste {x}',
+ 'desempenho de {x}','boas práticas para {x}','compare {x} com alternativas',
+ 'quando evitar {x}','escreva um teste para {x}','entenda {x} profundamente',
+ 'projete solução usando {x}','rastreie o fluxo de {x}','como documentar {x}',
+ 'mostre a sintaxe de {x}','analise a complexidade de {x}','explique casos limite de {x}'],
  ja:['{x}のコードを書いて','プログラミングで{x}を使う方法','{x}のコード例',
- '{x}を使う理由','{x}のデバッグ方法','{x}を実装して']
+ '{x}を使う理由','{x}のデバッグ方法','{x}を実装して',
+ '{x}を最適化して','{x}をリファクタリングして','{x}のよくある間違い','{x}のテスト方法',
+ '{x}の性能','{x}のベストプラクティス','{x}を比較して',
+ '{x}を避けるべき場合','{x}の単体テスト','{x}を深く理解する方法',
+ '{x}を使った設計','{x}の処理を追跡','{x}の文書化',
+ '{x}の構文を見せて','{x}の計算量','{x}の例外的な場合']
 };
+
 const topics=trainingTopics();
 for(let index=0;index<topics.length;index++){
  for(const lang of ['en','es','pt','ja']){
@@ -193,6 +215,14 @@ export function respondDefault(p,lang=p?.lang||'es'){
   const index=Number(p.id.slice(6)),names=trainingTopics()[index];
   if(!names)return null;
   const name=outlang==='es'?names[0]:(aliasForTopic(index,outlang)[0]||names[0]);
+  if(index>=200){
+    const topic=worldTopics[index-200];if(!topic)return null;
+    const intro={
+     es:'Tema: '+topic.es+'. ',en:'Topic: '+topic.en+'. ',
+     pt:'Tema: '+topic.pt+'. ',ja:topic.ja+'：'
+    }[outlang]||'Topic: ';
+    return intro+topic.info;
+  }
   if(index>=100){
     const definition=extraTopics[index-100]?.info;
     if(!definition)return null;
