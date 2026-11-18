@@ -47,11 +47,9 @@ export function detectLanguage(input,previous="es"){
  for(const [pattern,lang] of explicit){
    if(pattern.test(normalize(original))){score[lang]+=12;clues.push({lang,word:"explicit"});}
  }
- // Topic vocabulary can identify short messages like "chess" or "xadrez".
- if(!Object.values(score).some(Boolean)){
-   for(const word of words)for(const lang of ["en","pt"])if(topicClues[lang].has(word)){
-     score[lang]+=2;clues.push({lang,word});
-   }
+ // Distinct topic words reveal language even inside code-switching sentences.
+ for(const word of words)for(const lang of ["en","pt"])if(topicClues[lang].has(word)){
+   score[lang]+=2;clues.push({lang,word});
  }
  const ranking=Object.entries(score).sort((a,b)=>b[1]-a[1]);
  const best=ranking[0], prior=names[previous]?previous:"es";
