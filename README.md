@@ -1,10 +1,19 @@
-# MiniGPT 3.0 🤖
+# MiniGPT 3.1 🤖
 
 **English-first experimental browser chatbot** with a small statistical intent model, local learning, persistent memory, and bounded symbolic reasoning.
 
 MiniGPT runs on GitHub Pages without requiring an API key. It is **not** Qwen or another pretrained neural language model. It doesn't generate arbitrary code yet.
 
 **Live site:** https://ota-seb.github.io/MiniGPT/
+
+## Workspace and memory (v3.1)
+
+- **Dark burgundy / rose interface** built for desktop and mobile, with a conversation sidebar, improved spacing, clearer controls and a separate memory/weights inspector.
+- **Saved conversation list**: start, search, reopen, rename, or delete independent conversations. On phones, open the sidebar from the menu button.
+- **Per-chat history**: each conversation keeps its own messages and restores them when reopened. Existing single-chat history from older MiniGPT versions is automatically migrated into one saved conversation.
+- **Improved memory management**: explicit facts are shared across chats; add custom notes in the Memory panel, search them, ask MiniGPT about matching notes, or forget a specific note. These changes do not retrain the default model.
+- **Local-only persistence**: chats, notes, and learned features stay in the browser's OPFS/localStorage. They are included in new backup exports (format v3); v1/v2 backups remain importable. There is a storage cap of 45 chats and 160 saved messages per chat, so export backups for long-term archives.
+- **Deleting a chat removes its visible history**, but global learned feature weights and manually saved notes remain until separately cleared. Use the full reset option to clear everything.
 
 ## What's new
 
@@ -14,7 +23,7 @@ MiniGPT runs on GitHub Pages without requiring an API key. It is **not** Qwen or
 - **Short factual explanations** for technical concepts, rather than only generic conversation openers.
 - **Bounded reasoning** for arithmetic (with operator precedence), arithmetic sequences, numeric comparisons, basic logical implication, and static recognition of simple code constructs/errors. The engine does not execute code and will not invent an answer if a pattern isn't supported.
 - Confidence selector (80 / 90 / 95): the percentage is a **heuristic match score, not calibrated certainty**.
-- Inspect local learned topic weights, trained-response model features, and remembered conversation facts from the **Memory** panel.
+- Inspect local learned topic weights, trained-response model features, and remembered conversation facts from the **Memory** panel. The panel also supports adding and deleting individual memories.
 - Optional access to external APIs and links to model download pages. Download links do **not** load neural models into the app.
 
 ## Examples to try
@@ -45,7 +54,7 @@ MiniGPT runs on GitHub Pages without requiring an API key. It is **not** Qwen or
 
 Local learning and remembered conversation facts are stored in the user's browser, **not committed to GitHub**. Personal weight JSON files are never used as public seed data. You can inspect, export, import, or clear local data in the UI.
 
-The **v1 and v2 weight formats remain importable**. Topic IDs 0, 32–41, and 73 were repurposed in v3, so obsolete saved topic associations for those IDs are not carried over. Other learned associations may be retained. To delete any personal memories left from older conversations, use **Clear learned memory & weights**.
+The **v1 and v2 weight formats remain importable**, and the current format is v3 with separate chat histories. Topic IDs 0, 32–41, and 73 were repurposed in v3, so obsolete saved topic associations for those IDs are not carried over. Other learned associations may be retained. To delete any personal memories left from older conversations, use **Clear learned memory & weights**.
 
 External API usage is optional. When enabled, messages and relevant memory are sent to that provider; API keys are not persisted in localStorage or GitHub. Browser-based keys can still be exposed: use an appropriately restricted key.
 
