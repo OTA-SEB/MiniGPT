@@ -1,9 +1,9 @@
-import { fallback,detectTopics,topicCount } from './fallback.js?v=3.0';
+import { fallback,detectTopics,topicCount } from './fallback.js?v=4.0';
 import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=4.0';
-import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=3.0';
-import { reason } from './reasoning.js?v=3.0';
-import { PERSONA } from './personality.js?v=3.0';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=3.0';
+import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=4.0';
+import { reason } from './reasoning.js?v=4.0';
+import { PERSONA } from './personality.js?v=4.0';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=4.0';
 import { renderMarkdown,hasMarkdown } from './markdown.js?v=4.0';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=4.0';
 
@@ -371,7 +371,7 @@ el('settings-toggle').addEventListener('click',()=>setPanel('settings'));
 el('appearance-toggle').addEventListener('click',()=>setPanel('appearance'));
 el('google-toggle').addEventListener('click',()=>setPanel('google'));
 document.querySelectorAll('[data-close-panel]').forEach(b=>b.addEventListener('click',()=>setPanel(null)));
-el('clear').addEventListener('click',startNewConversation);
+
 el('forget-memory').addEventListener('click',async()=>{
  if(busy)return;
  if(typeof window.confirm==='function'&&!window.confirm('Clear all saved chats, memories and learning? Built-in knowledge will remain.'))return;
