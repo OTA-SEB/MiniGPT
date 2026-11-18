@@ -3,11 +3,12 @@
 import {detectTopicMatches} from './fallback.js?v=1.3';
 import {respondDefault} from './default-model.js?v=1.3';
 import {topicPhrase} from './i18n.js?v=1.3';
+import {worldTopics} from './world-topics.js?v=1.3';
 const connectors=/\b(?:y|and|e|ou|vs|versus|comparar|compara|compare|comparison|diferencia|diferença|difference)\b|と|や|比較/u;
 export function composeTopicAnswer(input,language='es'){
  const text=String(input||'');
  if(text.length>550||!connectors.test(text))return null;
- if(!/(?:\bqu[eé]\b|\bwhat\b|\bo que\b|\bexplain\b|\bexplica\b|\bsobre\b|\babout\b|\bcompara\b|\bcomparar\b|\bcompare\b|\bdiferencia\b|について|説明|とは|比較)/iu.test(text))return null;
+ if(!/(?:(?:\bque\b|qué)|\bwhat\b|\bo que\b|\bexplain\b|\bexplica\b|\bsobre\b|\babout\b|\bcompara\b|\bcomparar\b|\bcompare\b|\bdiferencia\b|について|説明|とは|比較)/iu.test(text))return null;
  const found=detectTopicMatches(text,language);
  const tokens=new Map();
  for(const hit of found){
@@ -19,7 +20,7 @@ export function composeTopicAnswer(input,language='es'){
  if(ids.length<2||ids.length>3)return null;
  const labels=[],answers=[];
  for(const id of ids){
-  const name=topicPhrase(id,language)||'Topic '+id;
+  const name=(id>=200?worldTopics[id-200]?.[language]:null)||topicPhrase(id,language)||'Topic '+id;
   const answer=respondDefault({id:'topic:'+id,percent:90,lang:language},language);
   if(!answer)return null;
   labels.push(name);answers.push('- **'+name+'**: '+answer);
