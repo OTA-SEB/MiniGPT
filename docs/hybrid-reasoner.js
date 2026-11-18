@@ -9,7 +9,13 @@ export function composeTopicAnswer(input,language='es'){
  if(text.length>550||!connectors.test(text))return null;
  if(!/(?:\bqu[eé]\b|\bwhat\b|\bo que\b|\bexplain\b|\bexplica\b|\bsobre\b|\babout\b|について|説明|とは|比較)/iu.test(text))return null;
  const found=detectTopicMatches(text,language);
- const ids=[...new Set(found.map(x=>x.id))].filter(Number.isInteger).slice(0,4);
+ const tokens=new Map();
+ for(const hit of found){
+  const key=String(hit.at)+':'+String(hit.term||'').toLowerCase();
+  const existing=tokens.get(key);
+  if(!existing||hit.id>=200&&existing.id<200)tokens.set(key,hit);
+ }
+ const ids=[...new Set([...tokens.values()].map(x=>x.id))].filter(Number.isInteger).slice(0,4);
  if(ids.length<2||ids.length>3)return null;
  const labels=[],answers=[];
  for(const id of ids){
