@@ -9,7 +9,7 @@ import { memoryBlocks } from './ota-tags.js?v=1.4';
 import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.4';
 import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.4';
 import { setupComposer } from './composer.js?v=1.4';
-import { generateLocally,chooseGenerativeModel,generativeModel,watchGenerative,cancelGeneration,resetGenerativeWorker } from './generative.js?v=1.4';
+import { generateLocally,chooseGenerativeModel,generativeModel,watchGenerative,cancelGeneration,resetGenerativeWorker } from './generative.js?v=1.5';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.4';
 
 const el=id=>document.getElementById(id);
