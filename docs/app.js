@@ -1,9 +1,11 @@
 import { fallback,detectTopics,topicCount } from './fallback.js?v=3.0';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=3.1';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=4.0';
 import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=3.0';
 import { reason } from './reasoning.js?v=3.0';
 import { PERSONA } from './personality.js?v=3.0';
 import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=3.0';
+import { renderMarkdown,hasMarkdown } from './markdown.js?v=4.0';
+import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=4.0';
 
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
@@ -23,46 +25,102 @@ function element(tag,cls='',content=''){
 }
 function bubble(role,text,meta=''){
  const item=element('article','bubble '+(role==='user'?'user':'bot'));
- item.append(element('div','bubble-text',text));
+ const body=element('div','bubble-text md-body');renderMarkdown(body,text);item.append(body);
  if(role!=='user'&&meta)item.append(element('div','response-meta',meta));
  chat.append(item);
  chat.scrollTop=chat.scrollHeight;
 }
 const workspace=document.querySelector('.workspace');
-const mobile=()=>!!window.matchMedia?.('(max-width: 900px)').matches;
+const mobile=()=>!!window.matchMedia?.('(max-width: 860px)').matches;
+let pendingMoveId=null,activePanel=null;
+const collapsedFolders=new Set();
+const panels={inspector:'inspector',settings:'settings',appearance:'appearance-panel',google:'google-panel'};
 function setSidebar(open){
- workspace.classList.toggle('sidebar-open',open&&mobile());
+ workspace.classList.toggle('sidebar-open',!!open&&mobile());
  workspace.classList.toggle('sidebar-collapsed',!open&&!mobile());
  el('sidebar-backdrop').hidden=!(open&&mobile());
  el('conversations-toggle').setAttribute('aria-expanded',String(!!open));
 }
 function closeMobileSidebar(){if(mobile())setSidebar(false);}
-function renderConversationList(){
- const list=el('conversation-list'),search=el('conversation-search').value.trim().toLowerCase();
- const chats=getChats();el('conversation-count').textContent=String(chats.length);list.replaceChildren();
- const filtered=chats.filter(c=>(c.title+' '+c.preview).toLowerCase().includes(search));
- if(!filtered.length){list.append(element('p','sidebar-empty',search?'No matching chats.':'Your conversations will appear here.'));return;}
- for(const c of filtered){
-  const item=element('div','conversation-item'+(c.active?' active':''));
-  const open=element('button','conversation-open');open.type='button';open.title=c.title;
-  open.setAttribute('aria-current',c.active?'page':'false');
-  const details=element('span','conversation-details');
-  details.append(element('span','conversation-title',c.title),element('span','conversation-preview',c.preview||'No messages yet'));
-  open.append(element('span','conversation-icon','▤'),details);
-  open.addEventListener('click',()=>{if(busy)return;if(selectChat(c.id)){renderActiveChat();closeMobileSidebar();}});
-  const actions=element('div','conversation-actions'),edit=element('button','conversation-action','✎'),del=element('button','conversation-action delete','×');
-  edit.type='button';edit.title='Rename conversation';edit.setAttribute('aria-label','Rename '+c.title);
-  edit.addEventListener('click',()=>{
-   if(busy)return;const next=window.prompt?.('Rename conversation',c.title);
-   if(next&&renameChat(c.id,next)){renderConversationList();el('chat-title').textContent=getActiveChat().title;}
-  });
-  del.type='button';del.title='Delete conversation';del.setAttribute('aria-label','Delete '+c.title);
-  del.addEventListener('click',()=>{
-   if(busy)return;if(window.confirm&&!window.confirm('Delete this conversation? Other chats and saved memories will remain.'))return;
-   if(deleteChat(c.id)){renderActiveChat();state('Conversation deleted');}
-  });
-  actions.append(edit,del);item.append(open,actions);list.append(item);
+function setPanel(next){
+ activePanel=next===activePanel?null:next;
+ for(const [name,id] of Object.entries(panels)){
+  el(id).hidden=name!==activePanel;
+  const toggle=el(name==='inspector'?'inspector-toggle':name==='settings'?'settings-toggle':name==='appearance'?'appearance-toggle':'google-toggle');
+  toggle.setAttribute('aria-expanded',String(name===activePanel));
+  toggle.classList.toggle('active',name===activePanel);
  }
+ el('sidebar-library').hidden=!!activePanel;
+ el('conversation-search').parentElement.hidden=!!activePanel;
+ if(activePanel==='inspector')renderInspector();
+ if(activePanel==='google')updateGoogleUI();
+}
+function makeConversationRow(c){
+ const item=element('div','conversation-item'+(c.active?' active':''));
+ const open=element('button','conversation-open');open.type='button';open.title=c.title;
+ open.setAttribute('aria-current',c.active?'page':'false');
+ const details=element('span','conversation-details');
+ details.append(element('span','conversation-title',c.title),element('span','conversation-preview',c.preview||'No messages yet'));
+ open.append(element('span','conversation-icon','▤'),details);
+ open.addEventListener('click',()=>{if(busy)return;if(selectChat(c.id)){renderActiveChat();closeMobileSidebar();}});
+ const actions=element('div','conversation-actions');
+ const edit=element('button','conversation-action','✎');
+ edit.type='button';edit.title='Rename chat';edit.setAttribute('aria-label','Rename '+c.title);
+ edit.addEventListener('click',()=>{if(busy)return;const next=window.prompt?.('Conversation name',c.title);if(next&&renameChat(c.id,next)){renderConversationList();el('chat-title').textContent=getActiveChat().title;}});
+ const move=element('button','conversation-action','⇢');
+ move.type='button';move.title='Move to folder';move.setAttribute('aria-label','Move '+c.title+' to folder');
+ move.addEventListener('click',()=>{
+  if(busy)return;
+  pendingMoveId=c.id;
+  const select=el('move-folder-select');select.replaceChildren();
+  const none=element('option','','No folder');none.value='';select.append(none);
+  for(const f of getFolders()){const option=element('option','',f.name);option.value=f.id;select.append(option);}
+  select.value=c.folderId||'';
+  el('move-chat-dialog').showModal();
+ });
+ const del=element('button','conversation-action delete','×');del.type='button';del.title='Delete chat';del.setAttribute('aria-label','Delete '+c.title);
+ del.addEventListener('click',()=>{
+  if(busy)return;if(window.confirm&&!window.confirm('Delete this chat? Saved memories will remain.'))return;
+  if(deleteChat(c.id)){renderActiveChat();state('Chat deleted');}
+ });
+ actions.append(edit,move,del);item.append(open,actions);
+ return item;
+}
+function renderConversationList(){
+ const list=el('conversation-list'),folderBox=el('folder-list'),query=el('conversation-search').value.trim().toLowerCase();
+ const chats=getChats(),folders=getFolders();
+ el('conversation-count').textContent=String(chats.length);
+ list.replaceChildren();folderBox.replaceChildren();
+ const matches=c=>(c.title+' '+c.preview).toLowerCase().includes(query);
+ for(const folder of folders){
+  const related=chats.filter(c=>c.folderId===folder.id&&matches(c));
+  if(query&&!related.length&&!folder.name.toLowerCase().includes(query))continue;
+  const group=element('div','folder-group');
+  const header=element('div','folder-header'),open=element('button','folder-open');
+  open.type='button';
+  const closed=collapsedFolders.has(folder.id)&&!query;
+  open.append(element('span','',closed?'▸':'▾'),element('span','folder-title','▣ '+folder.name),element('span','folder-count',String(folder.chatCount)));
+  open.addEventListener('click',()=>{collapsedFolders.has(folder.id)?collapsedFolders.delete(folder.id):collapsedFolders.add(folder.id);renderConversationList();});
+  const rename=element('button','folder-action','✎');rename.type='button';rename.title='Rename folder';
+  rename.addEventListener('click',()=>{if(busy)return;const next=window.prompt?.('Folder name',folder.name);if(next&&renameFolder(folder.id,next))renderConversationList();});
+  const remove=element('button','folder-action','×');remove.type='button';remove.title='Delete folder (chats are kept)';
+  remove.addEventListener('click',()=>{
+   if(busy)return;
+   if(window.confirm&&!window.confirm('Delete folder "'+folder.name+'"? Its chats will move to Other conversations.'))return;
+   if(deleteFolder(folder.id))renderConversationList();
+  });
+  header.append(open,rename,remove);group.append(header);
+  if(!closed){
+   const children=element('div','folder-children');
+   for(const c of related)children.append(makeConversationRow(c));
+   if(!related.length)children.append(element('p','sidebar-empty','No chats in this folder.'));
+   group.append(children);
+  }
+  folderBox.append(group);
+ }
+ const unfiled=chats.filter(c=>!c.folderId&&matches(c));
+ if(!unfiled.length)list.append(element('p','sidebar-empty',query?'No matching unfiled chats.':'Chats without folders appear here.'));
+ for(const c of unfiled)list.append(makeConversationRow(c));
 }
 function renderActiveChat(){
  const active=getActiveChat(),history=getHistory();messages.length=0;chat.replaceChildren();
@@ -71,13 +129,13 @@ function renderActiveChat(){
   for(const m of history){bubble(m.role,m.content);messages.push({role:m.role,content:m.content});}
   const last=[...history].reverse().find(m=>m.role==='user');
   lastLanguage=last?detectLanguage(last.content,'en').primary:'en';
- }else{lastLanguage='en';bubble('assistant','Hello! I’m MiniGPT. What would you like to explore today?');}
- input.placeholder=localText[lastLanguage].placeholder;
+ }else{lastLanguage='en';bubble('assistant','Welcome to OtaAI. What would you like to explore?');}
+ input.placeholder='Message OtaAI... (Shift+Enter for a new line)';
  document.documentElement.lang=lastLanguage;
- renderConversationList();if(!el('inspector').hidden)renderInspector();
+ renderConversationList();if(activePanel==='inspector')renderInspector();
 }
 function startNewConversation(){
- if(busy)return;createChat();renderActiveChat();closeMobileSidebar();
+ if(busy)return;createChat();setPanel(null);renderActiveChat();closeMobileSidebar();
  el('confidence-display').textContent='Match: —';state('New conversation');input.focus();
 }
 el('conversations-toggle').addEventListener('click',()=>{
@@ -87,6 +145,17 @@ el('conversations-toggle').addEventListener('click',()=>{
 el('conversations-close').addEventListener('click',closeMobileSidebar);
 el('sidebar-backdrop').addEventListener('click',closeMobileSidebar);
 el('new-chat').addEventListener('click',startNewConversation);
+el('new-folder').addEventListener('click',()=>{
+ if(busy)return;const name=window.prompt?.('New folder name');if(name){
+  if(!createFolder(name))state('Could not create folder');else renderConversationList();
+ }
+});
+el('move-chat-cancel').addEventListener('click',()=>el('move-chat-dialog').close());
+el('move-chat-form').addEventListener('submit',event=>{
+ event.preventDefault();
+ if(pendingMoveId&&moveChatToFolder(pendingMoveId,el('move-folder-select').value||null))renderConversationList();
+ pendingMoveId=null;el('move-chat-dialog').close();
+});
 el('conversation-search').addEventListener('input',renderConversationList);
 window.addEventListener?.('resize',()=>setSidebar(!mobile()&&!workspace.classList.contains('sidebar-collapsed')));
 setSidebar(!mobile());
