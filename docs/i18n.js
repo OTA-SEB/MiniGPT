@@ -90,7 +90,7 @@ export function topicText(index,lang,variant=0){
 }
 export const localText={
  es:{unknown:"No puedo responder ahora mismo.",mix:(a,b,others)=>a+" se cruza con "+b+(others.length?", junto a "+others.join(", "):"")+".",reset:"¡Charla reiniciada! 🤖",placeholder:"Escríbeme, bro...",status:"⚙️ Mini modelo local"},
- en:{unknown:"I can't answer that right now.",mix:(a,b,others)=>a+" meets "+b+(others.length+", with "+others.join(", "):"")+".",reset:"Chat restarted! 🤖",placeholder:"Message me, bro...",status:"⚙️ Local mini-model"},
+ en:{unknown:"I can't answer that right now.",mix:(a,b,others)=>a+" meets "+b+(others.length?", with "+others.join(", "):"")+".",reset:"Chat restarted! 🤖",placeholder:"Message me, bro...",status:"⚙️ Local mini-model"},
  pt:{unknown:"Não consigo responder isso agora.",mix:(a,b,others)=>a+" encontra "+b+(others.length?", junto com "+others.join(", "):"")+".",reset:"Conversa reiniciada! 🤖",placeholder:"Manda mensagem, bro...",status:"⚙️ Minimodelo local"},
  ja:{unknown:"今はそれに答えられないよ。",mix:(a,b,others)=>a+"と"+b+(others.length?"、それに"+others.join("と"):"")+"が出会った！",reset:"チャットをリセットしたよ！🤖",placeholder:"メッセージを書いてね...",status:"⚙️ ローカルミニモデル"}
 };
