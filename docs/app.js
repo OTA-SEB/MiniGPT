@@ -1,7 +1,7 @@
-import { fallback,detectTopics,topicCount } from './fallback.js';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights } from './learning.js';
+import { fallback,detectTopics,topicCount } from './fallback.js?v=1.4';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights } from './learning.js?v=1.4';
 import { PERSONA } from './personality.js';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.4';
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
 const defaults={openrouter:'openrouter/free',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash'};
