@@ -1,8 +1,8 @@
 // OtaAI 4.0: modelo estadístico contextual con pesos iniciales,
 // aprendizaje incremental, memoria local y compatibilidad con archivos v1.
 // Inspirado en ideas de atención/recuperación; NO contiene pesos de Qwen.
-import { trainingTopics,topicCount } from './fallback.js?v=3.0';
-import { aliasForTopic,romajiToKana } from './i18n.js?v=3.0';
+import { trainingTopics,topicCount } from './fallback.js?v=4.0';
+import { aliasForTopic,romajiToKana } from './i18n.js?v=4.0';
 const FILE='minigpt-pesos.json',BACKUP='minigpt.pesos.v1';
 const MAX_EXAMPLES=240,MAX_HISTORY=48,MAX_FEATURES=12500;
 const MAX_CHATS=45,MAX_CHAT_MESSAGES=160,MAX_FOLDERS=40;
