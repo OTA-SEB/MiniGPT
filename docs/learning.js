@@ -63,6 +63,8 @@ export function learn(input,answer,topics=[],source='fallback'){
    const keep=new Set(brain.examples.flatMap(x=>x.fs||[]).slice(-2500));
    for(const k of keys)if(!keep.has(k))delete brain.features[k];
  }
+ // Copia inmediata para no perder el último turno al cerrar la pestaña.
+ try{localStorage.setItem(BACKUP,JSON.stringify(brain));}catch{}
  queueSave();
 }
 export function predictTopics(message){
