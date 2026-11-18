@@ -3,7 +3,7 @@
 // are downloaded from Hugging Face and jsDelivr on first use.
 const LIBRARY='https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 const MODELS={
- qwen:{id:'onnx-community/Qwen2.5-0.5B-Instruct',label:'Qwen2.5 0.5B',device:'webgpu',dtype:'q4',tokens:192},
+ qwen:{id:'onnx-community/Qwen2.5-0.5B-Instruct',label:'Qwen2.5 0.5B',device:'webgpu',dtype:'q4f16',tokens:192},
  qwenCPU:{id:'onnx-community/Qwen2.5-0.5B-Instruct',label:'Qwen2.5 0.5B (CPU)',device:'wasm',dtype:'q4',tokens:192},
  smol:{id:'onnx-community/SmolLM2-135M-Instruct-ONNX-MHA',label:'SmolLM2 135M',device:'wasm',dtype:'q4',tokens:144}
 };
