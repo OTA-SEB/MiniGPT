@@ -151,6 +151,7 @@ export function setupComposer(editor,submit){
  return {
   value:()=>editorMarkdown(editor),
   clear:()=>editor.replaceChildren(),
+  restore:text=>editor.replaceChildren(document.createTextNode(String(text||''))),
   disable:value=>{editor.contentEditable=value?'false':'true';editor.setAttribute('aria-disabled',String(!!value));}
  };
 }
