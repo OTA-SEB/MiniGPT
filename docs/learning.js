@@ -161,6 +161,15 @@ export function answerMemory(question,lang='es'){
  }
  if(/(?:como me llamo|cual es mi nombre|what is my name)/.test(q)&&fs.name)return lang==='en'?'You told me your name is '+fs.name.value+'.':'Me dijiste que te llamas '+fs.name.value+'.';
  if(/(?:que me gusta|que cosas me gustan|what do i like)/.test(q)&&fs.likes)return lang==='en'?'You told me you like '+fs.likes.value+'.':'Me dijiste que te gusta '+fs.likes.value+'.';
+ if(/(?:what (?:is|was) my|what s my|which .* my|remind me|do you remember|tell me about my|que (?:es|era) mi|cual es mi|recuerdas mi|qual e (?:o|a) meu)/.test(q)){
+  const matches=Object.entries(fs).filter(([key])=>key.startsWith('note:')&&key.length>5&&q.includes(key.slice(5)));
+  if(matches.length===1){
+    const [key,item]=matches[0],label=item.label||key.slice(5);
+    return lang==='en'?label+': '+item.value+'.':lang==='pt'?label+': '+item.value+'.':lang==='ja'?label+'：'+item.value+'。':label+': '+item.value+'.';
+  }
+ }
+ if(/(?:cual es mi favorito|what is my favorite|what s my favorite)/.test(q)&&fs.favorite)
+  return lang==='en'?'You told me your favorite was '+fs.favorite.value+'.':'Me dijiste que tu favorito era '+fs.favorite.value+'.';
  if(/(?:que recuerdas|que sabes de mi|what do you remember|what do you know about me|remembered facts)/.test(q)){
   const entries=Object.entries(fs).filter(([k])=>!k.startsWith('translation:')).slice(-8);
   if(!entries.length)return lang==='en'?"I haven't saved any personal facts yet.":"Todavía no he guardado datos sobre ti.";
@@ -203,7 +212,7 @@ export function deleteMemoryFact(key){
 }
 export function saveMemoryFact(label,value){
  const name=String(label||'').trim().slice(0,60),valueText=String(value||'').trim().slice(0,400);
- if(!name||!valueText)return false;
+ if(!name||!valueText||!clean(name))return false;
  brain.facts['note:'+clean(name)]={value:valueText,label:name,at:Date.now()};
  queueSave();return true;
 }
