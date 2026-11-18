@@ -1,11 +1,12 @@
-// MiniGPT 2.1: modelo estadístico contextual con pesos iniciales,
+// MiniGPT 3.1: modelo estadístico contextual con pesos iniciales,
 // aprendizaje incremental, memoria local y compatibilidad con archivos v1.
 // Inspirado en ideas de atención/recuperación; NO contiene pesos de Qwen.
 import { trainingTopics,topicCount } from './fallback.js?v=3.0';
 import { aliasForTopic,romajiToKana } from './i18n.js?v=3.0';
 const FILE='minigpt-pesos.json',BACKUP='minigpt.pesos.v1';
 const MAX_EXAMPLES=240,MAX_HISTORY=48,MAX_FEATURES=12500;
-const blank=()=>({version:2,turns:0,features:{},examples:[],history:[],facts:{},seeded:false,seedVersion:0});
+const MAX_CHATS=45,MAX_CHAT_MESSAGES=160;
+const blank=()=>({version:3,turns:0,features:{},examples:[],history:[],chats:[],activeChatId:null,facts:{},seeded:false,seedVersion:0});
 let brain=blank(),storageReady=null,saveTimer=null;
 const clean=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff ]+/g,' ').replace(/\s+/g,' ').trim();
 const ignored=new Set('un una unos unas el la los las de del a al y o en que por para con sin se es soy eres era esta este esto su tu mi me te lo le ya no si yo tu bro xd xddd pues como muy pero algo hay eso the this that and are for with i we you is to of can do like'.split(' '));
@@ -16,10 +17,50 @@ function features(message){
  for(const word of words.filter(w=>w.length>=5))for(let j=0;j+3<=word.length;j++)out.add('c:'+word.slice(j,j+3));
  return [...out].slice(0,180);
 }
-function valid(x){return x&&(x.version===1||x.version===2)&&Number.isFinite(x.turns)&&x.features&&typeof x.features==='object'&&!Array.isArray(x.features)&&Array.isArray(x.examples);}
+function valid(x){return x&&[1,2,3].includes(x.version)&&Number.isFinite(x.turns)&&x.features&&typeof x.features==='object'&&!Array.isArray(x.features)&&Array.isArray(x.examples);}
+function newChatId(){return 'chat-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
+function safeMessages(value){
+ if(!Array.isArray(value))return [];
+ return value.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string')
+   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,2000),lang:m.lang||'en'}));
+}
+function createChatRecord(title='New conversation',messages=[]){
+ const now=Date.now();
+ return {id:newChatId(),title:String(title||'New conversation').slice(0,70),createdAt:now,updatedAt:now,messages:safeMessages(messages)};
+}
 function migrate(x){
- if(!valid(x))return blank();
- return {version:2,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),history:Array.isArray(x.history)?x.history.slice(-MAX_HISTORY):[],facts:x.facts&&typeof x.facts==='object'&&!Array.isArray(x.facts)?x.facts:{},seeded:!!x.seeded,seedVersion:Number.isFinite(x.seedVersion)?x.seedVersion:(x.seeded?2:0)};
+ if(!valid(x))return migrate({...blank(),version:3});
+ const history=safeMessages(x.history);
+ const chats=Array.isArray(x.chats)?x.chats.filter(c=>c&&typeof c.id==='string').slice(-MAX_CHATS).map(c=>({
+   id:c.id,title:String(c.title||'New conversation').slice(0,70),
+   createdAt:Number.isFinite(c.createdAt)?c.createdAt:Date.now(),
+   updatedAt:Number.isFinite(c.updatedAt)?c.updatedAt:Date.now(),messages:safeMessages(c.messages)
+ })):[];
+ if(!chats.length&&history.length){
+   const title=history.find(m=>m.role==='user')?.content.slice(0,48)||'Previous conversation';
+   chats.push(createChatRecord(title,history));
+ }
+ if(!chats.length)chats.push(createChatRecord());
+ const activeChatId=chats.some(c=>c.id===x.activeChatId)?x.activeChatId:chats.at(-1).id;
+ return {version:3,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),
+   history:safeMessages(chats.find(c=>c.id===activeChatId)?.messages),
+   chats,activeChatId,
+   facts:x.facts&&typeof x.facts==='object'&&!Array.isArray(x.facts)?x.facts:{},
+   seeded:!!x.seeded,seedVersion:Number.isFinite(x.seedVersion)?x.seedVersion:(x.seeded?2:0)};
+}
+function currentChat(){
+ let chat=brain.chats.find(c=>c.id===brain.activeChatId);
+ if(!chat){chat=createChatRecord();brain.chats.push(chat);brain.activeChatId=chat.id;}
+ return chat;
+}
+function syncActiveHistory(){brain.history=currentChat().messages.slice(-MAX_HISTORY);}
+function trimChats(){
+ if(brain.chats.length<=MAX_CHATS)return;
+ const ordered=brain.chats.slice().sort((a,b)=>a.updatedAt-b.updatedAt);
+ for(const old of ordered){
+   if(brain.chats.length<=MAX_CHATS)break;
+   if(old.id!==brain.activeChatId)brain.chats=brain.chats.filter(c=>c.id!==old.id);
+ }
 }
 function addWeight(key,id,amount=1){
  if(!key||!Number.isInteger(id)||id<0||id>=topicCount)return;
@@ -61,7 +102,7 @@ async function load(){
   }
  }catch{}
  if(!valid(parsed))try{parsed=JSON.parse(localStorage.getItem(BACKUP)||'null');}catch{}
- brain=valid(parsed)?migrate(parsed):blank();
+ brain=valid(parsed)?migrate(parsed):migrate(blank());
  if(valid(parsed)&&parsed.version===1)for(const example of brain.examples)if(typeof example.q==='string')rememberFact(example.q);
 }
 async function save(){
@@ -89,6 +130,9 @@ function rememberFact(input){
  if((m=/^(?:me llamo|mi nombre es)\s+(.{2,60})[.!]?$/i.exec(raw)))set('name',m[1].replace(/[.!]$/,''));
  if((m=/^me gust(?:a|an)\s+(.{2,100})[.!]?$/i.exec(raw)))set('likes',m[1].replace(/[.!]$/,''));
  if((m=/^mi (?:juego|animal|anime|color) favorito es\s+(.{2,100})[.!]?$/i.exec(raw)))set('favorite',m[1].replace(/[.!]$/,''));
+ if((m=/^(?:my name is|call me)\s+(.{2,60})[.!]?$/i.exec(raw)))set('name',m[1].replace(/[.!]$/,''));
+ if((m=/^i (?:like|love|enjoy)\s+(.{2,100})[.!]?$/i.exec(raw)))set('likes',m[1].replace(/[.!]$/,''));
+ if((m=/^my favorite (?:game|animal|anime|color|language) is\s+(.{2,100})[.!]?$/i.exec(raw)))set('favorite',m[1].replace(/[.!]$/,''));
  if((m=/^([\p{L}\p{N}_-]{2,45})\s+(?:significa|means)\s+(.{2,70})[.!]?$/iu.exec(raw))){
     let translation=m[2].replace(/\s+en (?:japon[eé]s|ingl[eé]s|portugu[eé]s|espa[nñ]ol)\.?$/i,'').replace(/[.!]$/,'').trim();
     set('translation:'+clean(m[1]),translation);
@@ -117,17 +161,54 @@ export function answerMemory(question,lang='es'){
  }
  if(/(?:como me llamo|cual es mi nombre|what is my name)/.test(q)&&fs.name)return lang==='en'?'You told me your name is '+fs.name.value+'.':'Me dijiste que te llamas '+fs.name.value+'.';
  if(/(?:que me gusta|que cosas me gustan|what do i like)/.test(q)&&fs.likes)return lang==='en'?'You told me you like '+fs.likes.value+'.':'Me dijiste que te gusta '+fs.likes.value+'.';
- if(/(?:que recuerdas|que sabes de mi|what do you remember)/.test(q)){
-  const entries=Object.entries(fs).filter(([k])=>!k.startsWith('translation:')).slice(-5);
+ if(/(?:que recuerdas|que sabes de mi|what do you remember|what do you know about me|remembered facts)/.test(q)){
+  const entries=Object.entries(fs).filter(([k])=>!k.startsWith('translation:')).slice(-8);
   if(!entries.length)return lang==='en'?"I haven't saved any personal facts yet.":"Todavía no he guardado datos sobre ti.";
-  return (lang==='en'?'I remember: ':'Recuerdo: ')+entries.map(([k,x])=>(k==='name'?'nombre: ':k==='likes'?'te gusta: ':'favorito: ')+x.value).join('; ')+'.';
+  return (lang==='en'?'I remember: ':'Recuerdo: ')+entries.map(([k,x])=>(k==='name'?'name: ':k==='likes'?'likes: ':k.startsWith('note:')?(x.label||k.slice(5))+': ':'favorite: ')+x.value).join('; ')+'.';
  }
  return null;
 }
-export function getHistory(){return brain.history.filter(x=>x&&['user','assistant'].includes(x.role)&&typeof x.content==='string').map(x=>({role:x.role,content:x.content,lang:x.lang||'es'}));}
-export function clearChat(){brain.history=[];queueSave();}
+export function getHistory(){return safeMessages(currentChat().messages);}
+export function getChats(){
+ return brain.chats.slice().sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>({
+   id:c.id,title:c.title,updatedAt:c.updatedAt,messageCount:c.messages.length,active:c.id===brain.activeChatId,
+   preview:c.messages.at(-1)?.content.slice(0,120)||''
+ }));
+}
+export function getActiveChat(){const c=currentChat();return {id:c.id,title:c.title,messageCount:c.messages.length};}
+export function createChat(){
+ const chat=createChatRecord();brain.chats.push(chat);brain.activeChatId=chat.id;
+ syncActiveHistory();trimChats();queueSave();return {id:chat.id,title:chat.title};
+}
+export function selectChat(id){
+ if(!brain.chats.some(c=>c.id===id))return false;
+ brain.activeChatId=id;syncActiveHistory();queueSave();return true;
+}
+export function renameChat(id,title){
+ const chat=brain.chats.find(c=>c.id===id),name=String(title||'').trim().replace(/\s+/g,' ').slice(0,70);
+ if(!chat||!name)return false;chat.title=name;chat.updatedAt=Date.now();queueSave();return true;
+}
+export function deleteChat(id){
+ const index=brain.chats.findIndex(c=>c.id===id);if(index<0)return false;
+ brain.chats.splice(index,1);
+ if(!brain.chats.length)brain.chats.push(createChatRecord());
+ if(brain.activeChatId===id)brain.activeChatId=brain.chats.slice().sort((a,b)=>b.updatedAt-a.updatedAt)[0].id;
+ syncActiveHistory();queueSave();return true;
+}
+// Clear only the active chat; weights and memories are shared.
+export function clearChat(){currentChat().messages=[];syncActiveHistory();queueSave();}
+export function deleteMemoryFact(key){
+ if(!Object.prototype.hasOwnProperty.call(brain.facts,key))return false;
+ delete brain.facts[key];queueSave();return true;
+}
+export function saveMemoryFact(label,value){
+ const name=String(label||'').trim().slice(0,60),valueText=String(value||'').trim().slice(0,400);
+ if(!name||!valueText)return false;
+ brain.facts['note:'+clean(name)]={value:valueText,label:name,at:Date.now()};
+ queueSave();return true;
+}
 export async function forgetMemory(){
- brain=blank();seed();brain.turns=0;await save();return stats();
+ brain=migrate(blank());seed();brain.turns=0;await save();return stats();
 }
 export function memoryContext(){
  const data=Object.entries(brain.facts).slice(-12).map(([key,v])=>key+': '+String(v.value||'')).join('\n');
@@ -150,8 +231,15 @@ export function learn(input,answer,topics=[],source='local',language='es'){
   brain.examples.push(entry);
  }
  cleanExamples();
- brain.history.push({role:'user',content:String(input).slice(0,2000),lang:language},{role:'assistant',content:String(answer).slice(0,1500),lang:language});
- brain.history=brain.history.slice(-MAX_HISTORY);
+ const chat=currentChat();
+ if(!chat.messages.some(m=>m.role==='user')&&chat.title==='New conversation'){
+   chat.title=String(input).replace(/\s+/g,' ').trim().slice(0,52)||'New conversation';
+ }
+ chat.messages.push({role:'user',content:String(input).slice(0,2000),lang:language},
+                    {role:'assistant',content:String(answer).slice(0,1500),lang:language});
+ chat.messages=chat.messages.slice(-MAX_CHAT_MESSAGES);
+ chat.updatedAt=Date.now();
+ syncActiveHistory();
  const keys=Object.keys(brain.features);
  if(keys.length>MAX_FEATURES){
   const active=new Set(brain.examples.flatMap(x=>x.fs||[]).slice(-3000));
@@ -192,11 +280,11 @@ export function recall(message,language='es'){
  }
  return best;
 }
-export function stats(){return {turns:brain.turns,examples:brain.examples.length,weights:Object.keys(brain.features).length,memory:Object.keys(brain.facts).length,history:brain.history.length,seeded:brain.seeded,seedVersion:brain.seedVersion};}
+export function stats(){return {turns:brain.turns,examples:brain.examples.length,weights:Object.keys(brain.features).length,memory:Object.keys(brain.facts).length,history:brain.history.length,chats:brain.chats.length,seeded:brain.seeded,seedVersion:brain.seedVersion};}
 export function inspectMemory(){
- const facts=Object.entries(brain.facts).map(([key,info])=>({key,value:String(info?.value||''),date:info?.at||0}));
+ const facts=Object.entries(brain.facts).map(([key,info])=>({key,label:info?.label||key,value:String(info?.value||''),date:info?.at||0}));
  const history=getHistory().slice(-24).map(x=>({role:x.role,text:x.content.slice(0,160),lang:x.lang}));
- return {facts,history};
+ return {facts,history,chats:brain.chats.length};
 }
 export function inspectWeights(query='',limit=90){
  const q=clean(query).replace(/ /g,'');
@@ -233,7 +321,13 @@ export async function importWeights(file){
  }
  brain.turns=Math.max(brain.turns,old.turns);
  for(const x of old.examples)if(x&&typeof x.q==='string'&&typeof x.a==='string'&&!brain.examples.some(y=>y.q===x.q&&y.lang===x.lang))brain.examples.push(x);
- if(old.history.length)brain.history=old.history.slice(-MAX_HISTORY);
+ const incoming=parsed.version===3&&Array.isArray(parsed.chats)
+   ?old.chats.filter(c=>c.messages.length)
+   :(old.history.length?[createChatRecord('Imported conversation',old.history)]:[]);
+ for(const chat of incoming){
+   if(!brain.chats.some(c=>c.id===chat.id))brain.chats.push(chat);
+ }
+ trimChats();syncActiveHistory();
  Object.assign(brain.facts,old.facts);
  if(parsed.version===1)for(const example of old.examples)if(typeof example.q==='string')rememberFact(example.q);
  seed();cleanExamples();await save();return stats();
