@@ -7,6 +7,12 @@ const LATIN={
  pt:"ola,oi,quero,como,porque,quando,onde,jogar,jogos,com,falar,sobre,obrigado,obrigada,tchau,estou,tenho,gosto,gostaria,tambem,mas,voce,voces,meu,minha,fala,conta,preciso,sim,nao,legal"
 };
 const common=Object.fromEntries(Object.entries(LATIN).map(([k,v])=>[k,new Set(v.split(","))]));
+
+const topicClues={
+ en:new Set("bread buns chess checkmate cat cats kitty dog dogs puppy chicken hen duck ducks quack coding programming computer processor graphics japan japanese english portuguese spanish sun moon rain raining snow winter summer heat food burger rice water coffee school homework math mathematics equation physics gravity past music song sleepy sleep hungry hunger friendship friend friends battery robotics".split(" ")),
+ pt:new Set("pao paes xadrez cachorro cachorros caes cao galinha frango dinossauro dinossauros espaco lua chuva chover neve inverno verao quente comida hamburguer escola aula tarefa equacao gravidade cancao quadrinhos amizades amizade sono fome robos".split(" "))
+};
+
 const japanese=/[\u3040-\u30ff\u3400-\u9fff]/;
 export function normalize(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9+\u3040-\u30ff\u3400-\u9fff]+/g," ").trim();}
 function matches(input,term){
@@ -19,12 +25,12 @@ function phraseMatches(input,term){
  return at<0?[]:[at];
 }
 const explicit=[
- [/\\b(?:speak|answer|reply|respond) (?:in )?english\\b/i,"en"],[/\\b(?:speak|answer|reply|respond) (?:in )?spanish\\b/i,"es"],
- [/\\b(?:speak|answer|reply|respond) (?:in )?portuguese\\b/i,"pt"],[/\\b(?:speak|answer|reply|respond) (?:in )?japanese\\b/i,"ja"],
- [/\\b(?:habla|responde|contestame|contesta) (?:en )?ingles\\b/i,"en"],[/\\b(?:habla|responde|contestame|contesta) (?:en )?espanol\\b/i,"es"],
- [/\\b(?:habla|responde|contestame|contesta) (?:en )?portugues\\b/i,"pt"],[/\\b(?:habla|responde|contestame|contesta) (?:en )?japones\\b/i,"ja"],
- [/\\b(?:fale|responda) (?:em )?ingles\\b/i,"en"],[/\\b(?:fale|responda) (?:em )?portugues\\b/i,"pt"],
- [/日本語で|英語で|スペイン語で|ポルトガル語で/u,"ja"]
+ [/\b(?:speak|answer|reply|respond) (?:in )?english\b/i,"en"],[/\b(?:speak|answer|reply|respond) (?:in )?spanish\b/i,"es"],
+ [/\b(?:speak|answer|reply|respond) (?:in )?portuguese\b/i,"pt"],[/\b(?:speak|answer|reply|respond) (?:in )?japanese\b/i,"ja"],
+ [/\b(?:habla|responde|contestame|contesta) (?:en )?ingles\b/i,"en"],[/\b(?:habla|responde|contestame|contesta) (?:en )?espanol\b/i,"es"],
+ [/\b(?:habla|responde|contestame|contesta) (?:en )?portugues\b/i,"pt"],[/\b(?:habla|responde|contestame|contesta) (?:en )?japones\b/i,"ja"],
+ [/\b(?:fale|responda) (?:em )?ingles\b/i,"en"],[/\b(?:fale|responda) (?:em )?portugues\b/i,"pt"],
+ [/日本語で/u,"ja"],[/英語で/u,"en"],[/スペイン語で/u,"es"],[/ポルトガル語で/u,"pt"]
 ];
 export function detectLanguage(input,previous="es"){
  const norm=normalize(input);
@@ -40,6 +46,12 @@ export function detectLanguage(input,previous="es"){
  const original=String(input||"").toLowerCase();
  for(const [pattern,lang] of explicit){
    if(pattern.test(normalize(original))){score[lang]+=12;clues.push({lang,word:"explicit"});}
+ }
+ // Topic vocabulary can identify short messages like "chess" or "xadrez".
+ if(!Object.values(score).some(Boolean)){
+   for(const word of words)for(const lang of ["en","pt"])if(topicClues[lang].has(word)){
+     score[lang]+=2;clues.push({lang,word});
+   }
  }
  const ranking=Object.entries(score).sort((a,b)=>b[1]-a[1]);
  const best=ranking[0], prior=names[previous]?previous:"es";
@@ -98,7 +110,7 @@ export function matchAliases(input,language,originalRows){
      if(at<0)continue;
      // Prefer language-tagged terms for direct translations, but neutral names
      // (e.g. Minecraft) use surrounding language.
-     if(!best||at<best.at||(at===best.at && x.lang && !best.lang))best={id:i,at,lang:x.lang};
+     if(!best||at<best.at||(at===best.at && x.lang && !best.lang))best={id:i,at,lang:x.lang,term:x.term};
    }
    if(best)found.push(best);
  }
@@ -120,7 +132,10 @@ export function matchAliases(input,language,originalRows){
    if(!x.lang)return null;
    // Proper names common to several languages cannot identify a language by themselves.
    const normInput=" "+normalize(input)+" ";
-   const overlaps=["es","en","pt","ja"].filter(l=>aliasForTopic(x.id,l).some(t=>normInput.includes(" "+t+" ")));
+   const overlaps=["en","pt","ja"].filter(l=>aliasForTopic(x.id,l).some(t=>normInput.includes(" "+t+" ")));
+   const isSpanishAlias=originalRows[x.id][0].split(",").some(t=>normalize(t)===x.term);
+   // "gato" is Spanish and Portuguese; "chess" is distinctly English.
+   if(isSpanishAlias && x.lang!=="ja" && !topicClues[x.lang]?.has(x.term))return null;
    return overlaps.length===1?x.lang:null;
  };
  return found.slice(0,5).map(x=>{
