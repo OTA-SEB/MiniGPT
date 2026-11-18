@@ -3,6 +3,7 @@
 import { normalize,aliasForTopic } from './i18n.js?v=1.0';
 import { extraTopics } from './extra-topics.js?v=1.0';
 import { worldTopics } from './world-topics.js?v=1.2';
+import { worldLocalFacts } from './world-facts-local.js?v=1.2';
 import { trainingTopics } from './fallback.js?v=1.0';
 const DIALOG={
  es:{
@@ -221,7 +222,7 @@ export function respondDefault(p,lang=p?.lang||'es'){
      es:'Tema: '+topic.es+'. ',en:'Topic: '+topic.en+'. ',
      pt:'Tema: '+topic.pt+'. ',ja:topic.ja+'：'
     }[outlang]||'Topic: ';
-    return intro+topic.info;
+    return intro+(worldLocalFacts[index-200]?.[outlang]||topic.info);
   }
   if(index>=100){
     const definition=extraTopics[index-100]?.info;
