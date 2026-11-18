@@ -3,131 +3,175 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#120910">
-<meta name="description" content="MiniGPT: private local chats, persistent memory and a multilingual AI experiment.">
-<title>MiniGPT 3.1 🤖</title>
-<link rel="stylesheet" href="./style.css?v=3.1">
+<meta name="theme-color" content="#17070b">
+<meta name="description" content="OtaAI — a local-first AI workspace with conversations, Markdown, and optional Google Drive backup.">
+<title>OtaAI 4.0</title>
+<link rel="stylesheet" href="./style.css?v=4.0">
+<script async defer src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
-<main class="app">
-  <header class="topbar">
-    <button class="secondary icon-button menu-button" id="conversations-toggle" type="button" aria-label="Toggle conversation history" aria-expanded="true" aria-controls="conversations">
-      <span aria-hidden="true">☰</span>
-    </button>
-    <div class="brand"><div class="logo" aria-hidden="true">🤖</div><div><h1>MiniGPT <small>3.1</small></h1><div id="status">🧠 Starting local model...</div></div></div>
-    <div class="buttons">
-      <button class="secondary" id="inspector-toggle" type="button" aria-expanded="false" title="Ver memoria y pesos">🔎 <span class="desktop-word">Memory</span></button>
-      <button class="secondary" id="settings-toggle" type="button" aria-expanded="false">⚙️ <span class="desktop-word">Model</span></button>
-      <button class="secondary new-chat-top" id="clear" type="button" title="New chat" aria-label="New chat"><span aria-hidden="true">＋</span><span class="desktop-word"> New chat</span></button>
+<main class="app" id="app">
+ <div class="workspace">
+  <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" hidden aria-label="Close sidebar"></button>
+  <aside class="conversation-sidebar" id="conversations" aria-label="OtaAI navigation and settings">
+   <div class="sidebar-head">
+    <div class="sidebar-brand"><span class="logo" aria-hidden="true">◈</span><div><h1>Ota<span>AI</span> <small>4.0</small></h1><span class="brand-sub">YOUR AI WORKSPACE</span></div></div>
+    <button class="secondary icon-button sidebar-close" id="conversations-close" type="button" aria-label="Close sidebar">✕</button>
+   </div>
+   <button class="create-conversation" id="new-chat" type="button"><span aria-hidden="true">＋</span> New chat</button>
+   <label class="sidebar-search"><span class="sr-only">Search conversations</span>
+    <input type="search" id="conversation-search" autocomplete="off" placeholder="Search conversations...">
+   </label>
+   <div id="sidebar-library" class="sidebar-library">
+    <div class="sidebar-list-header"><span>FOLDERS</span><button id="new-folder" class="plain-icon" type="button" aria-label="Create folder" title="New folder">＋</button></div>
+    <div id="folder-list" class="folder-list" aria-label="Chat folders"></div>
+    <div class="sidebar-list-header"><span>OTHER CONVERSATIONS</span><span id="conversation-count">0</span></div>
+    <nav id="conversation-list" class="conversation-list" aria-label="Unfiled conversations"></nav>
+   </div>
+   <nav class="sidebar-navigation" aria-label="OtaAI tools">
+    <button id="inspector-toggle" type="button" class="sidebar-nav" aria-expanded="false"><span aria-hidden="true">◉</span> Memory & weights</button>
+    <button id="settings-toggle" type="button" class="sidebar-nav" aria-expanded="false"><span aria-hidden="true">⚙</span> Settings & API keys</button>
+    <button id="appearance-toggle" type="button" class="sidebar-nav" aria-expanded="false"><span aria-hidden="true">◐</span> Personalization</button>
+    <button id="google-toggle" type="button" class="sidebar-nav" aria-expanded="false"><span aria-hidden="true">☁</span> Google Drive</button>
+   </nav>
+   <div class="sidebar-foot"><span id="cloud-mini-status">● Local storage</span><span>PRIVATE BY DEFAULT</span></div>
+
+   <section class="sidebar-panel settings" id="settings" hidden aria-label="Settings and API keys">
+    <div class="panel-head"><h2>Settings</h2><button type="button" class="panel-close secondary" data-close-panel>✕</button></div>
+    <div class="settings-card">
+     <h3>Local model</h3>
+     <label>Estimated confidence threshold
+      <select id="confidence-threshold"><option value="80" selected>80% · Flexible</option><option value="90">90% · Selective</option><option value="95">95% · Strict</option></select>
+     </label>
+     <p class="hint" id="learning-info">Loading model...</p>
     </div>
-  </header>
-  <section class="settings" id="settings" hidden aria-label="Model settings">
-    <div class="settings-grid">
-      <div class="settings-card">
-        <h2>🧠 Local model</h2>
-        <p class="hint">Works offline. When the estimated match clears the threshold, the trained model answers; otherwise MiniGPT uses its topic fallback.</p>
-        <label>Estimated match threshold
-          <select id="confidence-threshold" aria-label="Confianza mínima del modelo local">
-            <option value="80" selected>80% · Flexible</option>
-            <option value="90">90% · Selective</option>
-            <option value="95">95% · Strict</option>
-          </select>
-        </label>
-        <p class="hint" id="learning-info">Loading initial weights and memory...</p>
-      </div>
-      <div class="settings-card">
-        <h2>🌐 External AI (optional)</h2>
-        <div class="cols">
-          <label>Provider
-            <select id="provider"><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option><option value="gemini">Google Gemini</option></select>
-          </label>
-          <label>Model
-            <input id="model" value="openrouter/free" spellcheck="false" autocomplete="off">
-          </label>
-        </div>
-        <label>API key
-          <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Optional: enter your API key">
-        </label>
-        <div class="settings-row"><button type="button" class="secondary" id="show-key">Show key</button><span id="key-info">No key: local model</span></div>
-      </div>
-      <div class="settings-card">
-        <h2>💾 Storage & backups</h2>
-        <div class="button-cluster">
-          <button type="button" class="secondary" id="download-weights">⬇️ Export weights</button>
-          <button type="button" class="secondary" id="upload-weights">⬆️ Import weights</button>
-          <input type="file" id="weights-file" accept=".json,application/json" hidden>
-          <button type="button" class="secondary danger" id="forget-memory">🗑️ Clear learned memory & weights</button>
-        </div>
-      </div>
-      <div class="settings-card">
-        <h2>📦 External models</h2>
-        <p class="hint">These are download links, not models installed in MiniGPT. Running them requires compatible software and hardware.</p>
-        <div class="model-links">
-          <a href="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct" target="_blank" rel="noopener noreferrer">Qwen2.5 0.5B (Hugging Face) ↗</a>
-          <a href="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF" target="_blank" rel="noopener noreferrer">Qwen2.5 0.5B GGUF ↗</a>
-          <a href="https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct" target="_blank" rel="noopener noreferrer">SmolLM2 135M ↗</a>
-          <a href="https://ollama.com/library/qwen2.5:0.5b" target="_blank" rel="noopener noreferrer">Ollama: Qwen2.5 0.5B ↗</a>
-        </div>
-      </div>
+    <div class="settings-card">
+     <h3>External AI provider</h3>
+     <label>Provider<select id="provider"><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option><option value="gemini">Google Gemini</option></select></label>
+     <label>Model<input id="model" value="openrouter/free" spellcheck="false" autocomplete="off"></label>
+     <label>API key<input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste optional API key"></label>
+     <div class="settings-row"><button type="button" class="secondary" id="show-key">Show key</button><span id="key-info">Without a key: local model</span></div>
+     <p class="hint">Keys are never added to GitHub or local backups. A key used in the browser is still exposed to this page; use a restricted key.</p>
     </div>
-    <p class="privacy">🔐 Memory and learned weights stay in this browser. API keys are not stored. External providers receive messages and relevant memories when enabled. Confidence measures matching similarity, not a validated probability of correctness.</p>
+    <div class="settings-card">
+     <h3>Local backups</h3>
+     <div class="button-cluster">
+      <button type="button" class="secondary" id="download-weights">↓ Export local data</button>
+      <button type="button" class="secondary" id="upload-weights">↑ Import local data</button>
+      <input type="file" id="weights-file" accept=".json,application/json" hidden>
+      <button type="button" class="secondary danger" id="forget-memory">Clear all local data</button>
+     </div>
+    </div>
+    <div class="settings-card">
+     <h3>Model resources</h3>
+     <div class="model-links">
+      <a href="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct" target="_blank" rel="noopener noreferrer">Qwen2.5 0.5B ↗</a>
+      <a href="https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct" target="_blank" rel="noopener noreferrer">SmolLM2 135M ↗</a>
+     </div>
+    </div>
+    <p class="privacy">Model confidence is estimated similarity, not a validated probability.</p>
+   </section>
+
+   <section id="inspector" class="sidebar-panel inspector" hidden aria-label="Memory and weights">
+    <div class="panel-head"><h2>Memory & weights</h2><button type="button" id="inspector-close" class="panel-close secondary">✕</button></div>
+    <div class="inspector-tabs" role="group" aria-label="Inspector view">
+     <button type="button" id="tab-memory" class="active" aria-pressed="true">Memory</button>
+     <button type="button" id="tab-weights" aria-pressed="false">Weights</button>
+    </div>
+    <label class="inspector-search-label">Search<input id="inspector-search" autocomplete="off" placeholder="Filter memories or weights..."></label>
+    <form id="memory-form" class="memory-editor" autocomplete="off">
+     <div class="memory-editor-heading"><strong>Save a memory</strong><span>Shared across chats</span></div>
+     <input id="memory-key" maxlength="60" placeholder="Label" aria-label="Memory label" required>
+     <textarea id="memory-value" rows="2" maxlength="400" placeholder="What should OtaAI remember?" aria-label="Memory text" required></textarea>
+     <button type="submit" class="memory-save">Save memory</button>
+    </form>
+    <div id="inspector-summary" class="inspector-summary" aria-live="polite"></div>
+    <div id="inspector-content" class="inspector-content"></div>
+    <p class="hint inspector-note">Memories are shared across chats; conversation history remains separate.</p>
+   </section>
+
+   <section id="appearance-panel" class="sidebar-panel" hidden aria-label="Personalization">
+    <div class="panel-head"><h2>Personalization</h2><button type="button" class="panel-close secondary" data-close-panel>✕</button></div>
+    <div class="settings-card"><h3>Colors</h3>
+     <label>Accent palette<select id="theme-select"><option value="crimson">Crimson red</option><option value="wine">Deep wine</option><option value="rose">Dark rose</option></select></label>
+    </div>
+    <div class="settings-card"><h3>Reading</h3>
+     <label>Message text size<select id="font-select"><option value="small">Compact</option><option value="normal">Comfortable</option><option value="large">Large</option></select></label>
+     <label>Message spacing<select id="density-select"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
+    </div>
+    <p class="hint">Appearance settings are saved on this device.</p>
+   </section>
+
+   <section id="google-panel" class="sidebar-panel" hidden aria-label="Google Drive backup">
+    <div class="panel-head"><h2>Google Drive</h2><button type="button" class="panel-close secondary" data-close-panel>✕</button></div>
+    <div class="cloud-intro"><span aria-hidden="true">☁</span><h3>Back up your workspace</h3><p>Store OtaAI chats, folders, memories and learned weights in your Google account's private app-data space.</p></div>
+    <div class="settings-card">
+     <label>Google OAuth Web Client ID
+      <input id="google-client-id" autocomplete="off" spellcheck="false" placeholder="...apps.googleusercontent.com">
+     </label>
+     <p class="hint">One-time setup: enable the Google Drive API, create a Web OAuth client in Google Cloud, and add <code>https://ota-seb.github.io</code> as an authorized JavaScript origin. The client ID is public; never paste a client secret.</p>
+     <a class="setup-link" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Open Google Cloud Console ↗</a>
+     <button type="button" class="primary-button" id="google-connect">Connect Google account</button>
+     <button type="button" class="secondary" id="google-disconnect" hidden>Disconnect this session</button>
+    </div>
+    <div class="settings-card">
+     <h3>Cloud backup</h3><p class="hint">Saving and restoring are manual, so one device won't silently overwrite another.</p>
+     <div class="button-cluster cloud-actions">
+      <button id="google-save" type="button" class="secondary" disabled>↑ Save to Drive</button>
+      <button id="google-restore" type="button" class="secondary" disabled>↓ Restore from Drive</button>
+     </div>
+     <p id="google-status" class="cloud-status" role="status">Not connected</p>
+    </div>
+    <p class="privacy">Google Drive's app-data folder is hidden from the normal Drive file list. Only OtaAI backups are requested, not general access to your Drive. To restore, select the same Google account on another device.</p>
+   </section>
+  </aside>
+
+  <section class="chat-pane" aria-label="OtaAI chat">
+   <header class="chat-pane-head">
+    <button class="secondary icon-button menu-button" id="conversations-toggle" type="button" aria-label="Toggle sidebar" aria-expanded="true" aria-controls="conversations">☰</button>
+    <div class="chat-pane-heading"><span class="chat-pane-eyebrow">OTA AI / CONVERSATION</span><h2 id="chat-title">New conversation</h2></div>
+    <span class="chat-privacy-pill" id="storage-badge"><span aria-hidden="true">●</span> Local</span>
+    <button class="secondary new-chat-top" id="clear" type="button" title="New chat" aria-label="New chat">＋ <span class="desktop-word">New</span></button>
+   </header>
+   <div class="chat" id="chat" aria-live="polite" aria-relevant="additions text"><article class="bubble bot"><div class="bubble-text">Welcome to OtaAI.</div></article></div>
+   <div class="composer-area">
+    <div class="suggestions" aria-label="Suggested prompts">
+     <button type="button" data-try="What is recursion?">Recursion</button>
+     <button type="button" data-try="Explain a stack and a queue">Data structures</button>
+     <button type="button" data-try="Calculate (8+4)/3">Reasoning</button>
+     <button type="button" data-try="Hello, how are you today?">Say hello</button>
+    </div>
+    <div class="composer-box">
+     <div class="format-toolbar" aria-label="Markdown formatting">
+      <button type="button" data-format="bold" title="Bold" aria-label="Bold"><strong>B</strong></button>
+      <button type="button" data-format="italic" title="Italic" aria-label="Italic"><em>I</em></button>
+      <button type="button" data-format="code" title="Code block" aria-label="Code block">{ }</button>
+      <button type="button" data-format="list" title="List" aria-label="List">☷</button>
+      <span class="toolbar-spacer"></span>
+      <button type="button" id="preview-toggle" aria-pressed="false">Preview Markdown</button>
+     </div>
+     <div id="markdown-preview" class="markdown-preview md-body" hidden aria-label="Markdown preview"></div>
+     <form id="form" autocomplete="off">
+      <textarea id="message" maxlength="6000" rows="2" placeholder="Message OtaAI... (Shift+Enter for a new line)" aria-label="Write a message" required></textarea>
+      <button id="send" type="submit" title="Send message" aria-label="Send message">➤</button>
+     </form>
+     <div class="composer-footer">
+      <span id="typing-status" aria-live="polite">Markdown supported · Enter to send</span>
+      <span id="confidence-display">Match: —</span>
+     </div>
+    </div>
+    <div class="chat-foot"><span id="model-status">Loading model...</span><span id="status">Starting OtaAI...</span></div>
+   </div>
   </section>
-  <div class="workspace">
-    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close conversation history" hidden></button>
-    <aside class="conversation-sidebar" id="conversations" aria-label="Saved conversations">
-      <div class="sidebar-head">
-        <div><span class="overline">WORKSPACE</span><h2>Conversations</h2></div>
-        <button class="secondary icon-button sidebar-close" id="conversations-close" type="button" aria-label="Close conversations">✕</button>
-      </div>
-      <button class="create-conversation" id="new-chat" type="button"><span aria-hidden="true">＋</span> New conversation</button>
-      <label class="sidebar-search"><span class="sr-only">Search conversations</span>
-        <input type="search" id="conversation-search" autocomplete="off" placeholder="Search your chats...">
-      </label>
-      <div class="sidebar-list-header"><span>RECENT CHATS</span><span id="conversation-count">0</span></div>
-      <nav id="conversation-list" class="conversation-list" aria-label="Conversation list"></nav>
-      <div class="sidebar-foot"><span aria-hidden="true">◈</span> Stored on this device</div>
-    </aside>
-    <section class="chat-pane" aria-label="MiniGPT chat">
-      <div class="chat-pane-head">
-        <div class="chat-pane-heading"><span class="chat-pane-eyebrow">CURRENT CONVERSATION</span><h2 id="chat-title">New conversation</h2></div>
-        <span class="chat-privacy-pill"><span aria-hidden="true">●</span> Local history</span>
-      </div>
-      <div class="chat" id="chat" aria-live="polite" aria-relevant="additions text"><article class="bubble bot">Hello! 🤖 I'm MiniGPT 3.1. I know 200 topics, with a focus on programming, English, and basic reasoning. Ask me: “What is recursion?”</article></div>
-      <div class="suggestions" aria-label="Try a question"><button type="button" data-try="What is recursion?">💻 Recursion</button><button type="button" data-try="Explain a stack and a queue">🧱 Data structures</button><button type="button" data-try="Calculate (8+4)/3">🧮 Reasoning</button>
-        <button type="button" data-try="Hola, ¿cómo estás en el día de hoy?">👋 How are you?</button>
-        <button type="button" data-try="Hello, how are you today?">🇬🇧 English</button>
-        <button type="button" data-try="Oi, como você está hoje?">🇧🇷 Português</button>
-        <button type="button" data-try="konnichiwa kyou wa genki desu ka">🇯🇵 Romaji</button>
-        <button type="button" data-try="こんにちは、今日は元気ですか？">🗾 日本語</button>
-        <button type="button" data-try="Minecraft y ajedrez">♟️ Mixed topics</button>
-      </div>
-      <form id="form" autocomplete="off"><input id="message" maxlength="2000" placeholder="Ask me something..." aria-label="Type a message" required><button id="send" type="submit">Send <span aria-hidden="true">➤</span></button></form>
-      <div class="chat-foot"><span id="model-status">🧠 Loading training data...</span><span id="confidence-display">Match: —</span></div>
-    </section>
-    <aside id="inspector" class="inspector" hidden aria-label="Model memory and weights">
-      <div class="inspector-top"><div><h2>🔎 Model inspector</h2><p class="hint">Browse local memories and learned connections.</p></div><button type="button" id="inspector-close" class="secondary icon-button" aria-label="Close inspector">✕</button></div>
-      <div class="inspector-tabs" role="group" aria-label="Inspector tabs">
-        <button type="button" id="tab-memory" class="active" aria-pressed="true">🗂️ Memory</button>
-        <button type="button" id="tab-weights" aria-pressed="false">🧬 Weights</button>
-      </div>
-      <label class="inspector-search-label" >Search
-        <input id="inspector-search" placeholder="Filter memories or weights..." autocomplete="off">
-      </label>
-      <form id="memory-form" class="memory-editor" autocomplete="off">
-        <div class="memory-editor-heading"><strong>Add a memory</strong><span>Saved across conversations</span></div>
-        <label class="sr-only" for="memory-key">Memory title</label>
-        <input id="memory-key" maxlength="60" placeholder="Label (e.g. Preferred editor)" required>
-        <label class="sr-only" for="memory-value">Memory content</label>
-        <textarea id="memory-value" rows="2" maxlength="400" placeholder="What should MiniGPT remember?" required></textarea>
-        <button type="submit" class="memory-save">Save memory</button>
-      </form>
-      <div id="inspector-summary" class="inspector-summary" aria-live="polite"></div>
-      <div id="inspector-content" class="inspector-content"></div>
-      <p class="hint inspector-note">This inspector shows topic associations and the separately trained response-model features.</p>
-    </aside>
-  </div>
-  <footer id="footer">MiniGPT · Conversations & memory stay in your browser · 200 topics</footer>
+ </div>
+ <dialog id="move-chat-dialog" class="move-dialog">
+  <form method="dialog" id="move-chat-form">
+   <h3>Move conversation</h3>
+   <label>Destination folder<select id="move-folder-select"></select></label>
+   <div class="dialog-actions"><button type="button" id="move-chat-cancel" class="secondary">Cancel</button><button type="submit" class="primary-button">Move chat</button></div>
+  </form>
+ </dialog>
 </main>
-<script type="module" src="./app.js?v=3.1"></script>
+<script type="module" src="./app.js?v=4.0"></script>
 </body>
 </html>
