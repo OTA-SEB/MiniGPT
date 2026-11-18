@@ -1,8 +1,8 @@
 // Generative model bridge. No topic matching: returns newly generated text or failure.
 // Starts only on an explicit user action (a chat message or the Download button).
 export const GENERATIVE_MODELS={
- auto:'Auto (Qwen on WebGPU; SmolLM2 on low-power devices)',
- qwen:'Qwen2.5 0.5B Instruct (WebGPU, larger download)',
+ auto:'Auto (multilingual Qwen on capable GPU/CPU; SmolLM2 on weak devices)',
+ qwen:'Qwen2.5 0.5B Instruct (WebGPU or CPU; larger download)',
  smol:'SmolLM2 135M Instruct (lighter, WebAssembly CPU)'
 };
 let selected='auto',worker=null,requestId=0,active=null;
