@@ -92,7 +92,7 @@ function element(tag,cls='',content=''){
  if(content!==undefined)item.textContent=String(content);
  return item;
 }
-function bubble(role,text,meta=null){
+function bubble(role,text,meta=null,sentAt=Date.now()){
  const item=element('article','bubble '+(role==='user'?'user':'bot'));
  if(role!=='user'){
   const origin=meta&&typeof meta==='object'?meta:{mode:'fallback',trigger:'Not recorded for this older message'};
@@ -109,7 +109,7 @@ function bubble(role,text,meta=null){
   item.append(button,detail);
  }
  const body=element('div','bubble-text md-body');
- renderMarkdown(body,text,{onSave:role==='user'?null:(name,value)=>{
+ renderMarkdown(body,text,{sentAt,onSave:role==='user'?null:(name,value)=>{
   const ok=saveMemoryFact(name,value);if(ok){refreshLearning();state('Memory saved');}
   return ok;
  }});
@@ -212,7 +212,7 @@ function renderActiveChat(){
  const active=getActiveChat(),history=getHistory();messages.length=0;chat.replaceChildren();
  el('chat-title').value=active.title;
  if(history.length){
-  for(const m of history){bubble(m.role,m.content,m.meta);messages.push({role:m.role,content:m.content});}
+  for(const m of history){bubble(m.role,m.content,m.meta,m.createdAt);messages.push({role:m.role,content:m.content});}
   const last=[...history].reverse().find(m=>m.role==='user');
   lastLanguage=last?detectLanguage(last.content,'en').primary:'en';
  }else{lastLanguage='en';}
