@@ -56,7 +56,7 @@ OtaAI is now a **hybrid local AI system**: a real trainable neural classifier wo
 
 - **414,408 real trainable neural parameters**: separate language-specific hashed word/character embeddings (4 × 4096 × 24), a 48-unit tanh hidden layer and 408 intent/topic outputs. This network uses gradient descent, not an invented weight count.
 - Neural training runs locally in a dedicated Web Worker, with 4 epochs on mobile and 6 on desktop. The page stays interactive while the old model answers normally.
-- Model weights persist in the browser's IndexedDB after training and are reused on reload. Users can disable the network or request retraining from Settings.
+- Where the browser permits it, model weights are cached in IndexedDB after training and reused on reload; otherwise the network retrains when opened again. Users can disable the network or request retraining from Settings.
 - A held-out mobile worker test reported **53% top-one accuracy on 600 synthetic validation questions** after 31,980 gradient updates. This is *not* an external benchmark, reliable probability calibration or a guarantee on real conversations.
 - The neural model is only allowed to suggest an answer when its margin and score meet strict thresholds and when no stronger verified result exists. It can abstain and fall back to other methods.
 - **This is not a generative neural language model**, so it cannot freely write novel long answers or solve arbitrary research problems. It is a learned multilingual **intent classifier**, and its scores should not be treated as factual certainty.
