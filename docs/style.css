@@ -337,3 +337,62 @@ select,input,textarea{accent-color:var(--accent)}
 :root[data-appearance="light"] .chat{color:var(--text)}
 :root[data-appearance="light"] .composer-box{background:var(--surface2)}
 :root[data-appearance="light"] #form textarea{color:var(--text)}
+
+
+/* OtaAI live Markdown editor: editable rendered text, not a second preview. */
+#form{align-items:flex-end}
+#message.composer-editor{
+ flex:1;min-width:0;min-height:58px;max-height:185px;overflow-y:auto;
+ margin:0;padding:11px 13px;border:0;outline:0;background:transparent;
+ color:var(--text);font:400 14px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;
+ caret-color:var(--accent-hi);scrollbar-width:thin;scrollbar-color:var(--line2) transparent;
+ -webkit-user-modify:read-write-plaintext-only; /* overridden below to allow rich text */
+ -webkit-user-modify:read-write;
+}
+#message.composer-editor:empty::before{
+ content:attr(data-placeholder);color:var(--muted);opacity:.78;pointer-events:none
+}
+#message.composer-editor[contenteditable="false"]{opacity:.6;cursor:wait}
+#message.composer-editor strong{font-weight:780;color:var(--text)}
+#message.composer-editor em{font-style:italic}
+#message.composer-editor del{opacity:.74}
+#message.composer-editor :not(pre)>code{
+ font:500 .9em/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
+ background:var(--surface3);border:1px solid var(--line2);
+ border-radius:5px;padding:1px 4px;color:var(--accent-hi)
+}
+#message.composer-editor pre.composer-code{
+ display:block;min-height:2.5em;margin:6px 0;padding:10px 12px;
+ max-width:100%;overflow:auto;background:var(--surface);border:1px solid var(--line2);
+ border-radius:9px;white-space:pre-wrap;word-break:break-word;
+ font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+#message.composer-editor pre.composer-code::before{
+ content:attr(data-language);display:block;white-space:normal;color:var(--accent-hi);
+ font:650 10px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;
+ border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:8px;
+}
+#message.composer-editor pre.composer-code code{
+ display:block;min-height:1.3em;white-space:pre-wrap;color:var(--text);outline:none;
+}
+#message.composer-editor h1,
+#message.composer-editor h2,
+#message.composer-editor h3,
+#message.composer-editor h4,
+#message.composer-editor h5,
+#message.composer-editor h6{margin:5px 0;color:var(--text);line-height:1.35}
+#message.composer-editor h1{font-size:1.4em}
+#message.composer-editor h2{font-size:1.25em}
+#message.composer-editor h3{font-size:1.12em}
+#message.composer-editor ul,#message.composer-editor ol{margin:5px 0;padding-left:23px}
+#message.composer-editor li{margin:0}
+#message.composer-editor blockquote{margin:5px 0;padding:4px 12px;border-left:3px solid var(--accent);background:var(--surface3)}
+#message.composer-editor a{color:var(--accent-hi);text-decoration:underline}
+#message.composer-editor ::selection{background:var(--accent-dim);color:var(--text)}
+:root[data-appearance="light"] #message.composer-editor{color:var(--text)}
+:root[data-appearance="light"] #message.composer-editor pre.composer-code{background:var(--surface)}
+@media(max-width:480px){
+ #message.composer-editor{font-size:16px;padding:8px 10px;min-height:54px;max-height:170px}
+ #message.composer-editor pre.composer-code{font-size:12px}
+}
