@@ -1,4 +1,4 @@
-import { parseOtaTags,makeOtaNode,createCodeBlock } from './ota-tags.js?v=1.2';
+import { parseOtaTags,makeOtaNode,createCodeBlock } from './ota-tags.js?v=1.3';
 // Safe DOM-only Markdown rendering for users and assistant messages.
 const inlinePattern=/(\[([^\]]{1,180})\]\((https?:\/\/[^\s)]+)\)|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|\x60([^\x60\n]+)\x60|\*([^*\n]+)\*|_([^_\n]+)_|\uE100(\d+)\uE101)/g;
 function el(tag,cls=''){const x=document.createElement(tag);if(cls)x.className=cls;return x;}
