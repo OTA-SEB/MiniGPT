@@ -60,8 +60,8 @@ function resultMeta(result){
 function showResult(result,ctx){
  bubble('assistant',result.text,resultMeta(result));
  messages.push({role:'assistant',content:result.text});
- el('confidence-display').textContent=result.mode==='trained'?'Coincidencia: '+result.confidence+' %*':result.mode==='memory'?'Memoria utilizada':result.mode==='api'?'API externa':'Coincidencia insuficiente';
- state(result.mode==='trained'?'🧠 Modelo local · '+result.confidence+' %*':result.mode==='memory'?'🗂️ Memoria local':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:localText[ctx.primary].status);
+ el('confidence-display').textContent=result.mode==='trained'?'Coincidencia: '+result.confidence+' % (estimada)':result.mode==='memory'?'Memoria utilizada':result.mode==='api'?'API externa':'Coincidencia insuficiente';
+ state(result.mode==='trained'?'🧠 Modelo local · '+result.confidence+' % aprox.':result.mode==='memory'?'🗂️ Memoria local':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:localText[ctx.primary].status);
 }
 const safeText=(s)=>String(s||'').toLowerCase();
 function inspectorRow(container,title,detail,subtitle='',type='memory'){
@@ -199,7 +199,7 @@ form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy)return;
  const value=input.value.trim();if(!value)return;
  busy=true;el('send').disabled=true;input.disabled=true;input.value='';
- const ctx=detectLanguage(value,lastLanguage);lastLanguage=ctx.primary;
+ const ctx=detectLanguage(value,'es');lastLanguage=ctx.primary;
  input.placeholder=localText[lastLanguage].placeholder;
  document.documentElement.lang=lastLanguage;
  bubble('user',value);messages.push({role:'user',content:value});
