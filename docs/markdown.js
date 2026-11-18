@@ -50,7 +50,7 @@ const blockStart=(lines,i)=>{
 };
 export function renderMarkdown(root,input,options={}){
  root.replaceChildren();
- const parsed=parseOtaTags(String(input??'').replace(/\r\n?/g,'\n'));
+ const parsed=parseOtaTags(String(input??'').replace(/\r\n?/g,'\n'),options.sentAt);
  const ctx={items:parsed.items,options},lines=parsed.text.split('\n');
  let i=0,limit=0;
  while(i<lines.length&&limit++<400){
