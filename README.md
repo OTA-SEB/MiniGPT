@@ -56,7 +56,8 @@ OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full
 - docs/index.html: branded workspace, sidebar and Google Sign-In script.
 - docs/style.css: full responsive 6-mode appearance and Markdown styling.
 - docs/app.js: chat, folders, automatic Markdown display, source indicators, inline chat titles, personalization, optional API, Google backup UI.
-- docs/markdown.js: safe Markdown DOM renderer.\n- docs/otaai-logo.svg: compact embedded rendition of the supplied official OtaAI star artwork.
+- docs/markdown.js: safe Markdown DOM renderer.
+- docs/otaai-logo.svg: compact embedded rendition of the supplied official OtaAI star artwork.
 - docs/google-drive.js: Google OAuth token flow and appDataFolder REST backup.
 - docs/learning.js: local model persistence, memory, chats, folders, import/export and cloud snapshots.
 - docs/default-model.js, docs/fallback.js, docs/extra-topics.js, docs/i18n.js, docs/reasoning.js: existing model logic.
