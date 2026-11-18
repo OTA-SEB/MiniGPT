@@ -52,7 +52,7 @@ export function detectLanguage(input,previous="es"){
    score[lang]+=2;clues.push({lang,word});
  }
  const ranking=Object.entries(score).sort((a,b)=>b[1]-a[1]);
- const best=ranking[0], prior=names[previous]?previous:"es";
+ const best=ranking[0], prior=LANG_NAMES[previous]?previous:"es";
  const primary=best[1]>0? (best[1]===ranking[1][1] && score[prior]===best[1]?prior:best[0]) : prior;
  // Report secondary languages only when they have meaningful text cues.
  const languages=ranking.filter(([,n])=>n>=2).map(([k])=>k);
