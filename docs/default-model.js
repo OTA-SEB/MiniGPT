@@ -1,10 +1,10 @@
 // OtaAI 3.0 - mini modelo entrenado sin conexión en corpus sintético curado.
 // Clasificador de similitud semántica superficial: NO es un LLM ni probabilidad calibrada.
-import { normalize,aliasForTopic } from './i18n.js?v=1.0';
-import { extraTopics } from './extra-topics.js?v=1.0';
+import { normalize,aliasForTopic } from './i18n.js?v=1.2';
+import { extraTopics } from './extra-topics.js?v=1.2';
 import { worldTopics } from './world-topics.js?v=1.2';
 import { worldLocalFacts } from './world-facts-local.js?v=1.2';
-import { trainingTopics } from './fallback.js?v=1.0';
+import { trainingTopics } from './fallback.js?v=1.2';
 const DIALOG={
  es:{
   greeting:{q:['hola','holaa','holaaa','holi','buenas','hey','hola bro','ey bro','buenos dias','buenas tardes','buenas noches','que hubo','saludos','que mas','hola otaai'],a:['¡Holaaa! 🤖 ¿Qué tal va tu día?','¡Buenas, bro! ¿Qué cuentas? 😎','¡Ey! Aquí ando, listo para conversar. XDDD','¡Hola! ¿Qué aventura toca hoy?']},
