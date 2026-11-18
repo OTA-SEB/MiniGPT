@@ -47,7 +47,7 @@ const DIALOG={
 };
 const OPENERS={es:['','hablame de ','quiero hablar de ','me gusta ','que opinas de ','hoy pense en '],en:['','tell me about ','i like ','lets talk about ','what about ','i want to talk about '],pt:['','fale sobre ','gosto de ','vamos falar de ','o que acha de ','quero falar de '],ja:['','について','が好き','の話','教えて ']};
 const trim=s=>normalize(s).replace(/\s+/g,' ').trim();
-const vocab=new Map(),byLang=new Map(),EXACT=new Map();
+const vocab=new Map(),byLang=new Map(),EXACT=new Map(),inverted=new Map();
 let examples=0;
 function vector(text){
  const words=trim(text).split(' ').filter(Boolean).slice(0,24),features=new Map();
@@ -67,6 +67,11 @@ function ingest(text,lang,id,kind='intent'){
  EXACT.set(key,item);
  if(!byLang.has(lang))byLang.set(lang,[]);
  byLang.get(lang).push(item);
+ for(const feature of item.vec.keys()){
+  if(!feature.startsWith('w:'))continue;
+  const key=lang+':'+feature,group=inverted.get(key)||[];
+  group.push(item);inverted.set(key,group);
+ }
  const vocabKey=lang+':'+id,weights=vocab.get(vocabKey)||new Map();
  for(const [feature,w] of item.vec)weights.set(feature,(weights.get(feature)||0)+w);
  vocab.set(vocabKey,weights);examples++;
@@ -78,29 +83,46 @@ for(const [lang,intents] of Object.entries(DIALOG))for(const [id,rule] of Object
    if(!rule.p)for(const suffix of ['',' bro',' xd'])ingest(q+suffix,lang,id);
  }
 }
-// English receives denser supervised question patterns; other languages retain core coverage.
-const ENGLISH_CODE_PROMPTS=[
- 'what is ', 'what does ', 'explain ', 'define ', 'describe ',
- 'tell me about ', 'how does ', 'why use ', 'when to use ',
- 'what is the purpose of ', 'what are the basics of ',
- 'can you explain ', 'teach me about ', 'i want to learn ',
- 'help me understand ', 'what does the term ', 'what is the meaning of ',
- 'why is ', 'how can i understand ', 'i am studying '
-];
-const CODE_SUFFIXES=['',' in programming',' in computer science',' in software engineering'];
+// Symmetric supervised phrasing across the four languages.
+// Counts represent synthetic text examples and sparse feature associations,
+// not neural parameters or measured probability.
+const TOPIC_TEMPLATES={
+ en:['','what is {x}','explain {x}','tell me about {x}','how does {x} work',
+ 'define {x}','i want to learn about {x}','what do you know about {x}',
+ 'describe {x}','can you explain {x}','what is the meaning of {x}',
+ 'give me an example of {x}','help me understand {x}'],
+ es:['','qué es {x}','explica {x}','háblame de {x}','cómo funciona {x}',
+ 'define {x}','quiero aprender sobre {x}','qué sabes sobre {x}',
+ 'describe {x}','puedes explicar {x}','qué significa {x}',
+ 'dame un ejemplo de {x}','ayúdame a entender {x}'],
+ pt:['','o que é {x}','explique {x}','fale sobre {x}','como funciona {x}',
+ 'defina {x}','quero aprender sobre {x}','o que sabe sobre {x}',
+ 'descreva {x}','pode explicar {x}','o que significa {x}',
+ 'dê um exemplo de {x}','me ajude a entender {x}'],
+ ja:['','{x}とは何ですか','{x}を説明して','{x}について教えて','{x}はどう動きますか',
+ '{x}の定義は','{x}を学びたい','{x}について何を知っている',
+ '{x}を説明してください','{x}の意味は何','{x}の例を教えて',
+ '{x}を理解したい','{x}の基本を教えて']
+};
+const CODE_PROMPTS={
+ en:['write code about {x}','how to use {x} in programming','example of {x} in code',
+ 'why use {x} when coding','how to debug {x}','implement {x}'],
+ es:['escribe código sobre {x}','cómo usar {x} al programar','ejemplo de {x} en código',
+ 'por qué usar {x} programando','cómo depurar {x}','implementar {x}'],
+ pt:['escreva código sobre {x}','como usar {x} na programação','exemplo de {x} em código',
+ 'por que usar {x} ao programar','como depurar {x}','implementar {x}'],
+ ja:['{x}のコードを書いて','プログラミングで{x}を使う方法','{x}のコード例',
+ '{x}を使う理由','{x}のデバッグ方法','{x}を実装して']
+};
 const topics=trainingTopics();
 for(let index=0;index<topics.length;index++){
  for(const lang of ['en','es','pt','ja']){
-   const aliases=lang==='es'?topics[index]:aliasForTopic(index,lang);
-   for(const a of aliases.filter(Boolean)){
-     ingest(a,lang,'topic:'+index,'topic');
-     // Full English training; just one additional phrasing in other languages.
-     for(const p of (lang==='en'?OPENERS[lang]:OPENERS[lang].slice(0,2)))if(p)ingest(lang==='ja'&&p==='教えて '?p+a:a&&lang==='ja'?a+p:p+a,lang,'topic:'+index,'topic');
-     if(lang==='en'&&index>=100){
-       for(const p of ENGLISH_CODE_PROMPTS)for(const suffix of CODE_SUFFIXES)ingest(p+a+suffix,lang,'topic:'+index,'topic');
-       for(const phrase of ['a quick overview of ','the basics of ','a short explanation of ','understanding ','concept of '])ingest(phrase+a,lang,'topic:'+index,'topic');
-     }
-   }
+  const aliases=lang==='es'?topics[index]:aliasForTopic(index,lang);
+  for(const alias of aliases.filter(Boolean).slice(0,4)){
+   for(const template of TOPIC_TEMPLATES[lang])ingest(template.replace('{x}',alias),lang,'topic:'+index,'topic');
+   if(index>=100&&index<200)for(const template of CODE_PROMPTS[lang])
+    ingest(template.replace('{x}',alias),lang,'topic:'+index,'topic');
+  }
  }
 }
 // Las palabras japonesas en romaji se entrenan también como variantes directas.
@@ -122,7 +144,16 @@ function scoreOne(input,lang){
  const v=vector(norm);
  if(!v.size)return null;
  let first=null,second=null;
- for(const item of byLang.get(lang)||[]){
+ const groups=[...v.keys()].filter(f=>f.startsWith('w:'))
+  .map(f=>inverted.get(lang+':'+f)||[]).filter(g=>g.length)
+  .sort((a,b)=>a.length-b.length);
+ const selected=new Set();
+ for(const group of groups){
+  if(group.length>1600&&selected.size>100)continue;
+  for(const entry of group){selected.add(entry);if(selected.size>=2800)break;}
+  if(selected.size>=2800)break;
+ }
+ for(const item of selected){
   const sim=similarity(v,item.vec);
   if(!first||sim>first.match){if(first&&first.id!==item.id)second=first;first={id:item.id,lang,kind:item.kind,matched:item.raw,match:sim,exact:false};}
   else if(item.id!==first.id&&(!second||sim>second.match))second={id:item.id,match:sim};
