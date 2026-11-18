@@ -1,73 +1,67 @@
-# MiniGPT 3.1 🤖
+# OtaAI 4.0
 
-**English-first experimental browser chatbot** with a small statistical intent model, local learning, persistent memory, and bounded symbolic reasoning.
+OtaAI is a dark-red, local-first browser AI workspace with conversations, Markdown, basic reasoning, persistent memories, chat folders, and optional Google Drive backups.
 
-MiniGPT runs on GitHub Pages without requiring an API key. It is **not** Qwen or another pretrained neural language model. It doesn't generate arbitrary code yet.
+**Website:** https://ota-seb.github.io/MiniGPT/
 
-**Live site:** https://ota-seb.github.io/MiniGPT/
-
-## Workspace and memory (v3.1)
-
-- **Dark burgundy / rose interface** built for desktop and mobile, with a conversation sidebar, improved spacing, clearer controls and a separate memory/weights inspector.
-- **Saved conversation list**: start, search, reopen, rename, or delete independent conversations. On phones, open the sidebar from the menu button.
-- **Per-chat history**: each conversation keeps its own messages and restores them when reopened. Existing single-chat history from older MiniGPT versions is automatically migrated into one saved conversation.
-- **Improved memory management**: explicit facts are shared across chats; add custom notes in the Memory panel, search them, ask MiniGPT about matching notes, or forget a specific note. These changes do not retrain the default model.
-- **Local-only persistence**: chats, notes, and learned features stay in the browser's OPFS/localStorage. They are included in new backup exports (format v3); v1/v2 backups remain importable. There is a storage cap of 45 chats and 160 saved messages per chat, so export backups for long-term archives.
-- **Deleting a chat removes its visible history**, but global learned feature weights and manually saved notes remain until separately cleared. Use the full reset option to clear everything.
+The repository and GitHub Pages address keep the old path for backward compatibility. The product's new name is **OtaAI**.
 
 ## What's new
 
-- **200 topics**: the original 100 general topics plus exactly **100 new technical topics** covering programming fundamentals, data structures, algorithms, software design, web, databases, and security concepts.
-- Old user-specific subjects and examples in the *default model* have been replaced with neutral creative-design topics and ordinary arithmetic or decision-making topics.
-- **English-focused training** in `docs/default-model.js`: approximately 14,460 synthetic phrase examples, with 10,807 English examples (about 75% of training); lighter Spanish, Portuguese, Japanese and romaji support. Phrase counts are generated dynamically and may evolve.
-- **Short factual explanations** for technical concepts, rather than only generic conversation openers.
-- **Bounded reasoning** for arithmetic (with operator precedence), arithmetic sequences, numeric comparisons, basic logical implication, and static recognition of simple code constructs/errors. The engine does not execute code and will not invent an answer if a pattern isn't supported.
-- Confidence selector (80 / 90 / 95): the percentage is a **heuristic match score, not calibrated certainty**.
-- Inspect local learned topic weights, trained-response model features, and remembered conversation facts from the **Memory** panel. The panel also supports adding and deleting individual memories.
-- Optional access to external APIs and links to model download pages. Download links do **not** load neural models into the app.
+- Complete **crimson and charcoal redesign** for PC and mobile: the chat, message bubbles, composer, buttons, sidebar, folders, settings, saved memories, weights, and API key fields.
+- Everything is organized in **one sidebar**: saved chats and folders, memory and weights, settings and API keys, personalization, and Google Drive.
+- Create, search, rename and delete chats. Create, rename and delete folders; move chats between folders. Deleting a folder keeps its chats in the unfiled list.
+- Personalization: crimson, deep wine or rose palettes, larger or smaller message text, comfortable or compact spacing.
+- Markdown rendering for both users and OtaAI: headings, bold, italics, strikethrough, blockquotes, lists, simple task checkboxes, tables, inline code, fenced code blocks with syntax coloring and copy buttons, safe HTTP(S) links. HTML input is treated as text, never executed.
+- Markdown preview and formatting buttons in the textarea; Enter sends, Shift+Enter adds a newline.
+- Local memory records can be added, searched, viewed or deleted individually.
 
-## Examples to try
+## Google Drive backup (without a custom database)
 
-- `Hello, how are you today?`
-- `What is recursion?`
-- `Explain a stack and a queue`
-- `What is an API?`
-- `Calculate (8+4)/3`
-- `Next number: 2,4,6,8`
-- `If it rains, then the ground is wet. it rains. What follows?`
-- `Explain this Python code: for i in range(3): print(i)`
-- `Hola, ¿cómo estás?`, `Oi como voce esta hoje`, `こんにちは`, `konnichiwa`
+OtaAI uses **Google Identity Services** to request the narrow Google Drive scope:
 
-## Architecture
+https://www.googleapis.com/auth/drive.appdata
 
-- `docs/index.html` and `docs/style.css`: responsive interface for phones and desktops.
-- `docs/app.js`: conversation, model selection, topic routing, and memory inspector.
-- `docs/extra-topics.js`: the 100 additional technical topics and their English explanatory notes.
-- `docs/fallback.js`: topic aliases and localized response combinations.
-- `docs/i18n.js`: English-first detection with ES/PT/JA support and romaji matching.
-- `docs/default-model.js`: English-weighted synthetic training, matching, confidence heuristic, and topic answers.
-- `docs/reasoning.js`: bounded deterministic reasoning; no use of eval and no execution of user-submitted code.
-- `docs/learning.js`: trainable local associations, OPFS/localStorage persistence, memory, import/export and privacy controls.
-- `docs/personality.js`: general-purpose assistant instructions for optional external APIs.
+Data is saved as a JSON backup in the private **appDataFolder** of the user's Google account. This folder is not visible in the normal Drive file list. The application does **not** request access to ordinary Google Drive files.
 
-### Saved data and privacy
+### One-time Google Cloud setup
 
-Local learning and remembered conversation facts are stored in the user's browser, **not committed to GitHub**. Personal weight JSON files are never used as public seed data. You can inspect, export, import, or clear local data in the UI.
+1. Go to https://console.cloud.google.com/apis/credentials and create/select a Google Cloud project.
+2. Enable the **Google Drive API** in the project.
+3. Configure the Google OAuth consent screen. If still in testing mode, add the Google accounts allowed as test users.
+4. Create an **OAuth 2.0 Client ID** for a **Web application**.
+5. Add **https://ota-seb.github.io** as an authorized **JavaScript origin**.
+6. Open OtaAI's sidebar, select Google Drive, paste the **public Client ID**, then click Connect Google account and approve the permissions prompt.
 
-The **v1 and v2 weight formats remain importable**, and the current format is v3 with separate chat histories. Topic IDs 0, 32–41, and 73 were repurposed in v3, so obsolete saved topic associations for those IDs are not carried over. Other learned associations may be retained. To delete any personal memories left from older conversations, use **Clear learned memory & weights**.
+Never paste a Google client secret, access token or service-account private key in the website. The public OAuth Client ID is not a secret.
 
-External API usage is optional. When enabled, messages and relevant memory are sent to that provider; API keys are not persisted in localStorage or GitHub. Browser-based keys can still be exposed: use an appropriately restricted key.
+### Manual save and restore
 
-### Running the site
+**Save to Drive** uploads the user's chats, folders, memories and learned weights. **Restore from Drive** downloads the backup and replaces local data after an explicit confirmation. Back up locally before restoring if unsure.
 
-GitHub Pages: select **Settings → Pages → Deploy from a branch → main → /docs**. No build step is needed for the source.
+Backups are **manual**, not continuous real-time synchronization; this prevents silent overwrites between devices. Google access tokens remain in memory for the active browser session and are never saved to GitHub or local storage. The OAuth client ID may be remembered locally.
 
-Model download references:
-- [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
-- [Qwen2.5 GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF)
-- [SmolLM2 135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct)
-- [Qwen2.5 0.5B on Ollama](https://ollama.com/library/qwen2.5:0.5b)
+The Google connection becomes functional only after a real OAuth Client ID is configured in Google Cloud. A static site cannot invent the owner's Google project credentials. Broad/public Google OAuth usage may require Google review or verification.
 
-## Next milestone (not implemented)
+Google backup files contain private user data under the selected Google account. OtaAI does not encrypt these files end-to-end; Google Drive's account protections apply.
 
-**Local code construction/generation** with parsing, constraints, examples, safety checks and tests. This version is dedicated to understanding technical language and simple verifiable reasoning first.
+## Model capabilities
+
+OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full neural text generator. It retains 200 topics, English-focused synthetic training, smaller ES/PT/JA support, romaji, and bounded arithmetic/logic reasoning. Confidence scores are heuristic match scores, not guaranteed probabilities. General code generation is planned for a later version.
+
+## Files
+
+- docs/index.html: branded workspace, sidebar and Google Sign-In script.
+- docs/style.css: full responsive crimson appearance and Markdown styling.
+- docs/app.js: chat, folders, Markdown editor, memory, personalization, optional API, Google backup UI.
+- docs/markdown.js: safe Markdown DOM renderer.
+- docs/google-drive.js: Google OAuth token flow and appDataFolder REST backup.
+- docs/learning.js: local model persistence, memory, chats, folders, import/export and cloud snapshots.
+- docs/default-model.js, docs/fallback.js, docs/extra-topics.js, docs/i18n.js, docs/reasoning.js: existing model logic.
+- docs/personality.js: optional external AI personality prompt.
+
+## Compatibility and data safety
+
+Old MiniGPT v1–v3 local history and learning formats migrate to the current OtaAI workspace. Legacy internal storage keys are intentionally retained for compatibility; current downloaded local backups are named **otaai-local-data.json**.
+
+Deleting a chat does not delete global memories or learned associations. Use the individual memory controls or the explicit full reset. Keep backup copies outside a single browser for important data.
