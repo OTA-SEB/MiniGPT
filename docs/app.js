@@ -1,15 +1,16 @@
-import { fallback,detectTopics,detectTopicMatches,topicCount } from './fallback.js?v=1.3';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=1.3';
-import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=1.3';
-import { reason } from './reasoning.js?v=1.3';
-import { PERSONA } from './personality.js?v=1.3';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.3';
-import { renderMarkdown } from './markdown.js?v=1.3';
-import { memoryBlocks } from './ota-tags.js?v=1.3';
-import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.3';
-import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.3';
-import { setupComposer } from './composer.js?v=1.3';
-import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.3';
+import { fallback,detectTopics,detectTopicMatches,topicCount } from './fallback.js?v=1.4';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=1.4';
+import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=1.4';
+import { reason } from './reasoning.js?v=1.4';
+import { PERSONA } from './personality.js?v=1.4';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.4';
+import { renderMarkdown } from './markdown.js?v=1.4';
+import { memoryBlocks } from './ota-tags.js?v=1.4';
+import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.4';
+import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.4';
+import { setupComposer } from './composer.js?v=1.4';
+import { generateLocally,chooseGenerativeModel,generativeModel,watchGenerative,cancelGeneration,resetGenerativeWorker } from './generative.js?v=1.4';
+import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.4';
 
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
@@ -98,12 +99,13 @@ function bubble(role,text,meta=null,sentAt=Date.now()){
  const item=element('article','bubble '+(role==='user'?'user':'bot'));
  if(role!=='user'){
   const origin=meta&&typeof meta==='object'?meta:{mode:'fallback',trigger:'Not recorded for this older message'};
-  const brain=['api','trained','neural'].includes(origin.mode),button=element('button','origin-button'+(brain?' origin-brain':' origin-puzzle'),brain?'🧠':'🧩');
+  const brain=['api','generative'].includes(origin.mode),button=element('button','origin-button'+(brain?' origin-brain':' origin-puzzle'),brain?'🧠':'🧩');
   button.type='button';button.title=brain?'AI source details':'Automatic response details';
   button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded','false');
   const detail=element('div','origin-detail');detail.hidden=true;
   if(origin.mode==='api')detail.textContent='Model: '+(origin.model||'Not saved')+(origin.provider?' · '+origin.provider:'');
-  else if(origin.mode==='neural')detail.textContent='Neural match score: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Unavailable')+' · On-device model (not calibrated probability)';
+  else if(origin.mode==='generative')detail.textContent='Local generative model: '+(origin.model||'Unknown')+' · generated response';
+  else if(origin.mode==='neural')detail.textContent='Fallback classifier · match score: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Unavailable');
   else if(origin.mode==='trained')detail.textContent='Estimated confidence: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Not available');
   else detail.textContent='Trigger: '+(origin.trigger||'Not recorded for this older message');
   button.addEventListener('click',()=>{
@@ -279,6 +281,7 @@ async function localAnswer(value,ctx){
  const composed=composeTopicAnswer(value,ctx.primary);
  if(composed)return {text:composed.text,mode:'reasoning',confidence:null,trigger:composed.trigger};
 
+ if(neuralEnabled())startNeural();
  const matches=detectTopicMatches(value,ctx.primary),direct=matches.map(x=>x.id);
  const trigger=matches.length?matches.slice(0,4).map(m=>m.term).join(', '):'';
  const decision=inferDefault(value,ctx.primary);
@@ -313,8 +316,8 @@ async function localAnswer(value,ctx){
 function showResult(result,ctx){
  bubble('assistant',result.text,result);
  messages.push({role:'assistant',content:result.text});
- el('confidence-display').textContent=result.mode==='neural'?'Neural score: '+result.confidence+'% (uncalibrated)':result.mode==='trained'?'Match: '+result.confidence+'% (estimated)':result.mode==='memory'?'Memory used':result.mode==='api'?'External API':result.mode==='reasoning'?'Verified reasoning':result.mode==='reference'?'Reference answer':'Low match';
- state(result.mode==='neural'?'🧠 On-device neural model · '+result.confidence+'% match':result.mode==='trained'?'🧠 Local model · '+result.confidence+'% approx.':result.mode==='memory'?'🗂️ Local memory':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Local reasoning':result.mode==='reference'?'📚 Technical reference':localText[ctx.primary].status);
+ el('confidence-display').textContent=result.mode==='generative'?'Generative AI · '+(result.model||'local'):result.mode==='neural'?'Neural score: '+result.confidence+'% (uncalibrated)':result.mode==='trained'?'Match: '+result.confidence+'% (estimated)':result.mode==='memory'?'Memory used':result.mode==='api'?'External API':result.mode==='reasoning'?'Verified reasoning':result.mode==='reference'?'Reference answer':'Low match';
+ state(result.mode==='generative'?'🧠 Generated by '+(result.model||'local language model'):result.mode==='neural'?'🧠 On-device neural model · '+result.confidence+'% match':result.mode==='trained'?'🧠 Local model · '+result.confidence+'% approx.':result.mode==='memory'?'🗂️ Local memory':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Local reasoning':result.mode==='reference'?'📚 Technical reference':localText[ctx.primary].status);
 }
 const safeText=(s)=>String(s||'').toLowerCase();
 function inspectorRow(container,title,detail,subtitle='',type='memory'){
@@ -414,6 +417,51 @@ el('show-key').addEventListener('click',()=>{
 });
 key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Key ready: external AI available':'No key: local model');
 
+
+const generatorSelect=el('generator-model'),generatorStatusLabel=el('generator-status');
+const generationBar=el('generation-bar'),generationText=el('generation-text');
+let streamingPreview=null,generationVisible=false;
+generatorSelect.value=generativeModel();
+generatorSelect.addEventListener('change',()=>chooseGenerativeModel(generatorSelect.value));
+el('generator-reset').addEventListener('click',()=>{resetGenerativeWorker();generationBar.hidden=true;});
+el('generation-cancel').addEventListener('click',()=>cancelGeneration());
+watchGenerative(info=>{
+ let phrase=info.detail||'';
+ if(info.percent!==null&&['download','loading','model'].includes(info.phase))
+  phrase+=' · '+info.percent+'%';
+ generatorStatusLabel.textContent=(info.active?'● ':'○ ')+phrase;
+ if(generationVisible){
+  generationBar.hidden=false;
+  generationText.textContent=phrase||'Generating a new answer…';
+ }
+});
+function showStreamPreview(text){
+ if(!text)return;
+ if(!streamingPreview){
+  const article=element('article','bubble bot streaming-preview');
+  const body=element('div','bubble-text md-body');
+  article.append(body);chat.append(article);
+  streamingPreview={article,body};
+ }
+ renderMarkdown(streamingPreview.body,text.slice(0,9000));
+ chat.scrollTop=chat.scrollHeight;
+}
+function closeStreamPreview(){
+ if(streamingPreview){streamingPreview.article.remove();streamingPreview=null;}
+}
+async function tryGenerativeAnswer(ctx){
+ generationVisible=true;generationBar.hidden=false;
+ try{
+  const generated=await generateLocally(messages,ctx.primary,memoryContext(),{onToken:showStreamPreview});
+  closeStreamPreview();
+  if(generated?.cancelled)return {cancelled:true};
+  return {text:generated.text,mode:'generative',model:generated.model,
+   provider:'browser',confidence:null};
+ }finally{
+  closeStreamPreview();generationVisible=false;generationBar.hidden=true;
+ }
+}
+
 function updateNeuralStatus(info){
  const line=el('neural-status'),retrain=el('neural-retrain');
  retrain.disabled=!info.enabled||!['ready','error'].includes(info.state);
@@ -438,7 +486,7 @@ el('neural-retrain').addEventListener('click',()=>{
  if(retrainNeural())el('neural-status').textContent='Retraining from synthetic examples…';
 });
 watchNeural(updateNeuralStatus);
-startNeural();
+// The fallback classifier is started only after the primary generator cannot answer.
 
 void ready().then(()=>{renderActiveChat();refreshLearning();updateComposer();state('OtaAI ready');})
  .catch(()=>state('Could not load local memory'));
@@ -483,12 +531,27 @@ form.addEventListener('submit',async event=>{
  bubble('user',value);messages.push({role:'user',content:value});
  try{
   await ready();
-  let result,source='local';
-  if(!key.value.trim())result=await localAnswer(value,ctx);
-  else{
-   state('🌐 Consultando modelo externo...');
-   try{result={text:await ask(messages,key.value.trim(),ctx),mode:'api',confidence:null,model:model.value.trim()||defaults[provider.value],provider:provider.value};source='api';}
-   catch{result=await localAnswer(value,ctx);state('⚠️ API no disponible: respuesta local');}
+  let result=null,source='local',lastFailure='';
+  // This order is intentional: generative AI first. Topic/rule/keyword replies
+  // are strictly a fallback, never the main response engine.
+  if(key.value.trim()){
+   state('🌐 Generating with external AI...');
+   try{
+    result={text:await ask(messages,key.value.trim(),ctx),mode:'api',confidence:null,
+     model:model.value.trim()||defaults[provider.value],provider:provider.value};
+    source='api';
+   }catch(error){lastFailure='External AI unavailable: '+String(error?.message||error).slice(0,85);}
+  }
+  if(!result){
+   try{
+    result=await tryGenerativeAnswer(ctx);
+    if(result?.cancelled){state('Generation cancelled');return;}
+   }catch(error){lastFailure='Generative model unavailable: '+String(error?.message||error).slice(0,85);}
+  }
+  if(!result){
+   result=await localAnswer(value,ctx);
+   const cause=lastFailure||'No generative response';
+   result.trigger='Automatic fallback · '+cause+(result.trigger?' · '+result.trigger:'');
   }
   showResult(result,ctx);
   const topics=detectTopics(value,ctx.primary);
