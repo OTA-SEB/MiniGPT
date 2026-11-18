@@ -44,13 +44,13 @@
      <p class="hint">OtaAI writes original responses using a pretrained language model. Topics, rules and the 414K classifier are backups only if generation fails.</p>
      <label>Local generative model
       <select id="generator-model">
-       <option value="auto">Automatic · GPU or lightweight CPU</option>
-       <option value="qwen">Qwen2.5 0.5B Instruct · stronger, WebGPU</option>
-       <option value="smol">SmolLM2 135M Instruct · lightweight CPU</option>
+       <option value="auto">Automatic · multilingual GPU/CPU</option>
+       <option value="qwen">Qwen2.5 0.5B Instruct · GPU or CPU</option>
+       <option value="smol">SmolLM2 135M Instruct · lightweight CPU (English stronger)</option>
       </select>
      </label>
      <p id="generator-status" class="hint generator-status" role="status">The model downloads when you send a message. No API key is required.</p>
-     <p class="hint">First use downloads model weights (potentially hundreds of MB). A GPU helps; on older phones, generation may be slow or unavailable. Model files come from Hugging Face, but conversation text stays in the browser.</p>
+     <p class="hint">First use downloads model weights (potentially hundreds of MB). A GPU helps. Multilingual Qwen also supports CPU on capable devices, but it can be very slow; on older phones, generation may be unavailable. Model files come from Hugging Face, but conversation text stays in the browser.</p>
      <div class="button-cluster"><button type="button" id="generator-reset" class="secondary">Unload local generator</button></div>
     </div>
     <div class="settings-card">
