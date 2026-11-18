@@ -10,7 +10,7 @@ MiniGPT runs on GitHub Pages without requiring an API key. It is **not** Qwen or
 
 - **200 topics**: the original 100 general topics plus exactly **100 new technical topics** covering programming fundamentals, data structures, algorithms, software design, web, databases, and security concepts.
 - Old user-specific subjects and examples in the *default model* have been replaced with neutral creative-design topics and ordinary arithmetic or decision-making topics.
-- **English-focused training** in `docs/default-model.js`: approximately 17,800 synthetic phrase examples, with over 10,800 English examples; lighter Spanish, Portuguese, Japanese and romaji support. Phrase counts are generated dynamically and may evolve.
+- **English-focused training** in `docs/default-model.js`: approximately 14,460 synthetic phrase examples, with 10,807 English examples (about 75% of training); lighter Spanish, Portuguese, Japanese and romaji support. Phrase counts are generated dynamically and may evolve.
 - **Short factual explanations** for technical concepts, rather than only generic conversation openers.
 - **Bounded reasoning** for arithmetic (with operator precedence), arithmetic sequences, numeric comparisons, basic logical implication, and static recognition of simple code constructs/errors. The engine does not execute code and will not invent an answer if a pattern isn't supported.
 - Confidence selector (80 / 90 / 95): the percentage is a **heuristic match score, not calibrated certainty**.
