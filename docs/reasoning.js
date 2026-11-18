@@ -1,8 +1,23 @@
+import { answerCodeRequest,inspectCodeText,supportedCodeLanguages } from './code-knowledge.js?v=1.2';
 // OtaAI 3.0 - bounded arithmetic, logic and static code inspection. No eval().
 export function reason(input,lang='en'){
- const raw=String(input||'').trim();if(raw.length>1800)return null;
+ const raw=String(input||'').trim();if(raw.length>6000)return null;
  const l=raw.toLowerCase(),loc=(en,es,pt,ja)=>({en,es,pt,ja}[lang]||en);
  const done=(text,kind,confidence=99)=>({text,kind,confidence});
+ const code=answerCodeRequest(raw,lang)||inspectCodeText(raw,lang);
+ if(code)return done(code.text,code.kind,90);
+ if(/(?:qu[eé] es|qu[eé] significa|what is|what does)\s+ax\b/i.test(raw))
+  return done(loc('AX marks the following choices as the preferred ones within a list.',
+   'AX marca los elementos que vienen después como opciones de interés dentro de una lista.',
+   'AX destaca os itens seguintes como opções de interesse numa lista.',
+   'AXはリストの後続の選択肢を強調する記号だよ。'),'ax-grammar');
+ const ax=/^(.{1,150})\s+ax\s+(.{1,150})$/i.exec(raw);
+ if(ax){
+  const before=ax[1].trim(),after=ax[2].trim();
+  return done(loc('Available: ','Disponibles: ','Disponíveis: ','候補: ')+before+', '+after+'. '+
+   loc('Marked by AX: ','Marcado por AX: ','Marcado por AX: ','AXで選択: ')+after+'.','ax-selection');
+ }
+
  const m=raw.match(/^(?:(?:what is|calculate|compute|solve|cu[aá]nto es|calcula|quanto [eé])\s*:?\s*)?([0-9+\-*\/().\s]+)\??$/i);
  if(m&&/\d/.test(m[1])&&m[1].length<100){
   const exp=m[1].replace(/\s+/g,''),t=exp.match(/\d+(?:\.\d+)?|[()+*\/-]/g);
@@ -21,7 +36,7 @@ export function reason(input,lang='en'){
  const logic=raw.match(/if\s+([^.,!?]{2,70}?)\s*,?\s+then\s+([^.,!?]{2,70})\s*[.]\s*([^.!?]{2,70})\s*[.]\s*(?:what follows|what can you conclude)\s*\??/i);
  if(logic&&logic[1].trim().toLowerCase()===logic[3].trim().toLowerCase())return done('If '+logic[1]+', then '+logic[2]+'. Given '+logic[3]+', we can conclude '+logic[2]+' (modus ponens).','deduction');
  if(/(?:\bcode\b|\bpython\b|\bjavascript\b|\bdebug\b|\bc[oó]digo\b|\berror\b)/i.test(raw)){
-  if(/(?:write|generate|create|build|escribe|genera|crea)\s+(?:(?:a|some|un|una)\s+)?(?:code|c[oó]digo|script|program|function)/i.test(raw))return done(loc('Code generation is planned for the next version. I can currently explain concepts and simple snippets.','La generación de código llegará en la próxima versión. Ahora explico conceptos.','A geração de código virá na próxima versão.','コード生成は次のバージョンで対応予定だよ。'),'code-planned',100);
+  if(/(?:write|generate|create|build|escribe|genera|crea)\s+(?:(?:a|some|un|una)\s+)?(?:code|c[oó]digo|script|program|function)/i.test(raw))return done(loc('I can generate curated examples for hello world, sum and loops in: "+supportedCodeLanguages.join(", ")+". Tell me the language and task.','Puedo crear ejemplos de hola mundo, suma y bucles en: "+supportedCodeLanguages.join(", ")+". Indica lenguaje y tarea.','Posso gerar exemplos de olá mundo, soma e laços. Diga a linguagem e a tarefa.','基本的なコード例を作れるよ。言語と目的を教えてね。'),'code-planned',100);
   if(/syntaxerror|indentationerror/i.test(raw))return done(loc('Check the failing line and the previous line for delimiters and indentation.','Revisa la línea fallida y la anterior: delimitadores y sangría.','Confira a linha e a anterior para erros de sintaxe.','エラー行と直前の行を確認しよう。'),'code-insight',82);
   if(/typeerror/i.test(raw))return done(loc('A TypeError often indicates an unexpected value type.','TypeError suele indicar un tipo inesperado.','TypeError pode indicar um tipo inesperado.','型の不一致かもしれない。'),'code-insight',82);
   if(/explain|what does|que hace|qué hace|explica|o que faz/i.test(raw)){
