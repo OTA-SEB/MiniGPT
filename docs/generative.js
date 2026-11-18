@@ -26,7 +26,7 @@ export function watchGenerative(callback){watchers.add(callback);callback(genera
 function ensureWorker(){
  if(worker)return worker;
  if(typeof Worker==='undefined')throw Error('This browser does not support local model workers');
- worker=new Worker('./generative-worker.js?v=1.4',{type:'module'});
+ worker=new Worker('./generative-worker.js?v=1.5',{type:'module'});
  worker.addEventListener('message',event=>{
   const d=event.data||{};
   if(d.type==='progress'){
