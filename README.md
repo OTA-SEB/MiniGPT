@@ -50,12 +50,24 @@ Google backup files contain private user data under the selected Google account.
 
 ## Model capabilities
 
-OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full neural text generator. It now covers **400 topics**, including **200 new topics across 20 diverse areas** (science, history, philosophy, arts, sports, society, language, design and more). Each new topic has concise educational descriptions in **English, Spanish, Portuguese and Japanese**.
+OtaAI is now a **hybrid local AI system**: a real trainable neural classifier works alongside the original statistical matcher, user-approved memory retrieval, deterministic reasoning and curated topic answers. It covers **400 topics** across science, culture, technical subjects and 20 other categories, with reference explanations in English, Spanish, Portuguese and Japanese.
+
+### Neural network
+
+- **414,408 real trainable neural parameters**: separate language-specific hashed word/character embeddings (4 × 4096 × 24), a 48-unit tanh hidden layer and 408 intent/topic outputs. This network uses gradient descent, not an invented weight count.
+- Neural training runs locally in a dedicated Web Worker, with 4 epochs on mobile and 6 on desktop. The page stays interactive while the old model answers normally.
+- Model weights persist in the browser's IndexedDB after training and are reused on reload. Users can disable the network or request retraining from Settings.
+- A held-out mobile worker test reported **53% top-one accuracy on 600 synthetic validation questions** after 31,980 gradient updates. This is *not* an external benchmark, reliable probability calibration or a guarantee on real conversations.
+- The neural model is only allowed to suggest an answer when its margin and score meet strict thresholds and when no stronger verified result exists. It can abstain and fall back to other methods.
+- **This is not a generative neural language model**, so it cannot freely write novel long answers or solve arbitrary research problems. It is a learned multilingual **intent classifier**, and its scores should not be treated as factual certainty.
+- All training data comes from the app's synthetic topic templates. Conversations and private memory are **not** uploaded for training or stored in the neural cache.
+
+### Existing components
 
 - **34,904 synthetic training examples**, relatively balanced between EN (8,713), ES (8,955), PT (8,690), and JA (8,546).
 - **249,790 sparse learned-style feature associations** in the static matcher (ES 70,712; EN 63,584; PT 67,241; JA 48,253), including **121,134 programming-topic associations**. These are **NOT neural-network parameters** or a pretrained language model.
 - **17 language-specific programming templates** for hello-world, addition and loops, plus limited static code inspection: Python, C++, Rust, Kotlin, C#, JavaScript, TypeScript, Java, Go, Swift, Ruby, Lua, PHP, Bash, SQL, HTML and CSS.
-- Rule-based reasoning includes arithmetic, sequences, comparisons, basic logical deduction, percentages, linear equations, primality tests and the Euclidean GCD algorithm. This is transparent symbolic calculation, **not general neural reasoning**.
+- Rule-based reasoning includes arithmetic, sequences, comparisons, basic logical deduction, percentages, linear equations, primality tests and the Euclidean GCD algorithm. A separate multi-topic reasoning path composes verified reference explanations for compound queries. This is transparent symbolic calculation, **not general neural reasoning**.
 - The original user-defined grammar marker **AX** is recognized as emphasizing choices following it in a list.
 
 Confidence percentages remain heuristic similarity scores and must never be treated as calibrated probabilities. Unsupported requests may still receive a generic fallback.
@@ -88,6 +100,10 @@ OtaAI recognizes a small **custom tag syntax**, parsed as text rather than HTML.
 - docs/markdown.js: safe Markdown DOM renderer and OTA tag integration.
 - docs/ota-tags.js: custom tags, time counters, memory labels, colors, syntax highlighting and isolated JS runner.
 - docs/code-knowledge.js: curated programming-language templates and static code inspection.
+- docs/neural-core.js: 414,408-parameter neural embeddings, hidden layer, manual gradient descent and evaluation.
+- docs/neural-worker.js: browser-based training, validation, inference and IndexedDB model cache.
+- docs/neural.js: main-thread neural status, opt-out, retraining and asynchronous prediction bridge.
+- docs/hybrid-reasoner.js: multi-topic retrieval and grounded response composition.
 - docs/world-topics.js, docs/world-facts-local.js: 200 new topics with EN/ES/PT/JA descriptions.
 - docs/composer.js: live contenteditable Markdown formatting and keyboard handling.
 - docs/otaai-logo.svg: compact embedded rendition of the supplied official OtaAI star artwork.
