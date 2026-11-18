@@ -13,7 +13,8 @@ The repository and GitHub Pages address keep the old path for backward compatibi
 - Responsive layout for desktop, tablet and phone, including a collapsible workspace sidebar on mobile.
 - **Edit a conversation name directly** by clicking its title at the top of the chat. Press Enter or click elsewhere to save; Escape cancels. The rename icon in the sidebar selects the conversation and focuses that title field. No rename popup.
 - Conversation folders, shared memories, learned weights, API keys, personalization and Google Drive remain in the sidebar.
-- **Automatic Markdown** for messages from both user and assistant: type the raw syntax such as **, *, backticks, code fences, lists and tables. Rendered messages display formatting automatically; the compose box needs no formatting toolbar or preview switch. Raw HTML stays plain text and HTTP(S) links are restricted.
+- **Enter inserts a line break**, including on mobile keyboards. Only clicking **Send** (or pressing **Ctrl+Enter / Cmd+Enter**) submits the message.
+- **Live Markdown as you type**: the editor itself turns completed `**bold**`, `*italic*`, `~~strikethrough~~`, inline backticks, Markdown links, `# ` headings and `- ` lists into visible formatting immediately. Typing three backticks and an optional language, then pressing Enter, opens an editable code block. Both sent user messages and AI responses also render Markdown. HTML pasted into the editor is treated as text.
 - **Compact source indicator on assistant messages** (top-left): 🧠 for trained local model answers or external AI; tap for estimated match confidence or the chosen API model. 🧩 for automatic/reference/memory/rule-based responses; tap for the keyword or specific rule that triggered the response. Exact detected keywords are surfaced when present. Older saved replies without provenance are labeled accordingly rather than guessed.
 - Response metadata is saved in local chat history and Drive backups, so the indicator still works after reopening a conversation.
 - Removed suggested prompts, repeated response-status labels, and unused formatting controls to keep the interface uncluttered.
@@ -56,7 +57,8 @@ OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full
 - docs/index.html: branded workspace, sidebar and Google Sign-In script.
 - docs/style.css: full responsive 6-mode appearance and Markdown styling.
 - docs/app.js: chat, folders, automatic Markdown display, source indicators, inline chat titles, personalization, optional API, Google backup UI.
-- docs/markdown.js: safe Markdown DOM renderer.
+- docs/markdown.js: safe Markdown DOM renderer for messages.
+- docs/composer.js: live contenteditable Markdown formatting and keyboard handling.
 - docs/otaai-logo.svg: compact embedded rendition of the supplied official OtaAI star artwork.
 - docs/google-drive.js: Google OAuth token flow and appDataFolder REST backup.
 - docs/learning.js: local model persistence, memory, chats, folders, import/export and cloud snapshots.
