@@ -6,6 +6,9 @@ export function parseOtaTags(value,sentAt=Date.now()){
   ['save',/<save(?:\s+name\s*=\s*["']?([\w -]{1,60})["']?)?\s*>([\s\S]*?)<\/save>/i],
   ['color',/<color\s*=\s*["']?(#[a-f\d]{3,6}|[a-z]{2,20})["']?\s*>([\s\S]*?)<\/color>/i],
   ['mark',/<mark>([\s\S]*?)<\/mark>/i],
+  ['spoiler',/<spoiler>([\s\S]*?)<\/spoiler>/i],
+  ['kbd',/<kbd>([\s\S]*?)<\/kbd>/i],
+  ['notice',/<notice>([\s\S]*?)<\/notice>/i],
   ['time',/<time(?:\s+([da])\s*=\s*["']?(\d{1,8})["']?)?\s*>/i],
   ['stime',/<stime\s*>/i]
  ];
@@ -17,7 +20,7 @@ export function parseOtaTags(value,sentAt=Date.now()){
   if(type==='code'){data.lang=String(match[1]).toLowerCase();data.content=match[2].replace(/^\n/,'').replace(/\n$/,'').slice(0,12000);}
   if(type==='save'){data.name=String(match[1]||'').trim().slice(0,60);data.content=match[2].trim().slice(0,400);}
   if(type==='color'){data.color=match[1].toLowerCase();data.content=match[2].slice(0,3000);}
-  if(type==='mark')data.content=match[1].slice(0,3000);
+  if(['mark','spoiler','kbd','notice'].includes(type))data.content=match[1].slice(0,3000);
   if(type==='time'){data.direction=match[1]||'';data.seconds=Number(match[2]||0);data.base=Number.isFinite(sentAt)?sentAt:Date.now();}
   if(type==='stime')data.base=Date.now();
   items.push(data);
@@ -144,6 +147,26 @@ export function makeOtaNode(item,options={}){
   if(options.renderNested)options.renderNested(el,item.content);
   else el.textContent=item.content;
   return el;
+ }
+ if(item.type==='kbd'){
+  const key=document.createElement('kbd');key.className='ota-kbd';key.textContent=item.content;return key;
+ }
+ if(item.type==='notice'){
+  const box=document.createElement('aside');box.className='ota-notice';
+  if(options.renderNested)options.renderNested(box,item.content);else box.textContent=item.content;
+  return box;
+ }
+ if(item.type==='spoiler'){
+  const box=document.createElement('span');box.className='ota-spoiler';
+  const button=document.createElement('button');button.type='button';button.className='ota-spoiler-button';button.textContent='Show spoiler';
+  button.setAttribute('aria-expanded','false');
+  const contents=document.createElement('span');contents.hidden=true;
+  if(options.renderNested)options.renderNested(contents,item.content);else contents.textContent=item.content;
+  button.addEventListener('click',()=>{
+   contents.hidden=!contents.hidden;button.setAttribute('aria-expanded',String(!contents.hidden));
+   button.textContent=contents.hidden?'Show spoiler':'Hide spoiler';
+  });
+  box.append(button,contents);return box;
  }
  if(item.type==='save'){
   const block=document.createElement('span');block.className='ota-save';
