@@ -5,8 +5,8 @@ import { trainingTopics,topicCount } from './fallback.js?v=3.0';
 import { aliasForTopic,romajiToKana } from './i18n.js?v=3.0';
 const FILE='minigpt-pesos.json',BACKUP='minigpt.pesos.v1';
 const MAX_EXAMPLES=240,MAX_HISTORY=48,MAX_FEATURES=12500;
-const MAX_CHATS=45,MAX_CHAT_MESSAGES=160;
-const blank=()=>({version:3,turns:0,features:{},examples:[],history:[],chats:[],activeChatId:null,facts:{},seeded:false,seedVersion:0});
+const MAX_CHATS=45,MAX_CHAT_MESSAGES=160,MAX_FOLDERS=40;
+const blank=()=>({version:4,turns:0,features:{},examples:[],history:[],chats:[],folders:[],activeChatId:null,facts:{},seeded:false,seedVersion:0});
 let brain=blank(),storageReady=null,saveTimer=null;
 const clean=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff ]+/g,' ').replace(/\s+/g,' ').trim();
 const ignored=new Set('un una unos unas el la los las de del a al y o en que por para con sin se es soy eres era esta este esto su tu mi me te lo le ya no si yo tu bro xd xddd pues como muy pero algo hay eso the this that and are for with i we you is to of can do like'.split(' '));
@@ -17,7 +17,7 @@ function features(message){
  for(const word of words.filter(w=>w.length>=5))for(let j=0;j+3<=word.length;j++)out.add('c:'+word.slice(j,j+3));
  return [...out].slice(0,180);
 }
-function valid(x){return x&&[1,2,3].includes(x.version)&&Number.isFinite(x.turns)&&x.features&&typeof x.features==='object'&&!Array.isArray(x.features)&&Array.isArray(x.examples);}
+function valid(x){return x&&[1,2,3,4].includes(x.version)&&Number.isFinite(x.turns)&&x.features&&typeof x.features==='object'&&!Array.isArray(x.features)&&Array.isArray(x.examples);}
 function newChatId(){return 'chat-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);}
 function safeMessages(value){
  if(!Array.isArray(value))return [];
@@ -29,12 +29,15 @@ function createChatRecord(title='New conversation',messages=[]){
  return {id:newChatId(),title:String(title||'New conversation').slice(0,70),createdAt:now,updatedAt:now,messages:safeMessages(messages)};
 }
 function migrate(x){
- if(!valid(x))return migrate({...blank(),version:3});
+ if(!valid(x))return migrate(blank());
  const history=safeMessages(x.history);
+ const folders=Array.isArray(x.folders)?x.folders.filter(g=>g&&typeof g.id==='string'&&typeof g.name==='string')
+   .slice(0,MAX_FOLDERS).map(g=>({id:g.id,name:g.name.trim().slice(0,55),createdAt:Number(g.createdAt)||Date.now()})):[];
+ const folderIds=new Set(folders.map(g=>g.id));
  const chats=Array.isArray(x.chats)?x.chats.filter(c=>c&&typeof c.id==='string').slice(-MAX_CHATS).map(c=>({
    id:c.id,title:String(c.title||'New conversation').slice(0,70),
    createdAt:Number.isFinite(c.createdAt)?c.createdAt:Date.now(),
-   updatedAt:Number.isFinite(c.updatedAt)?c.updatedAt:Date.now(),messages:safeMessages(c.messages)
+   updatedAt:Number.isFinite(c.updatedAt)?c.updatedAt:Date.now(),folderId:folderIds.has(c.folderId)?c.folderId:null,messages:safeMessages(c.messages)
  })):[];
  if(!chats.length&&history.length){
    const title=history.find(m=>m.role==='user')?.content.slice(0,48)||'Previous conversation';
@@ -42,9 +45,9 @@ function migrate(x){
  }
  if(!chats.length)chats.push(createChatRecord());
  const activeChatId=chats.some(c=>c.id===x.activeChatId)?x.activeChatId:chats.at(-1).id;
- return {version:3,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),
+ return {version:4,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),
    history:safeMessages(chats.find(c=>c.id===activeChatId)?.messages),
-   chats,activeChatId,
+   chats,folders,activeChatId,
    facts:x.facts&&typeof x.facts==='object'&&!Array.isArray(x.facts)?x.facts:{},
    seeded:!!x.seeded,seedVersion:Number.isFinite(x.seedVersion)?x.seedVersion:(x.seeded?2:0)};
 }
@@ -180,11 +183,36 @@ export function answerMemory(question,lang='es'){
 export function getHistory(){return safeMessages(currentChat().messages);}
 export function getChats(){
  return brain.chats.slice().sort((a,b)=>b.updatedAt-a.updatedAt).map(c=>({
-   id:c.id,title:c.title,updatedAt:c.updatedAt,messageCount:c.messages.length,active:c.id===brain.activeChatId,
+   id:c.id,title:c.title,updatedAt:c.updatedAt,folderId:c.folderId||null,messageCount:c.messages.length,active:c.id===brain.activeChatId,
    preview:c.messages.at(-1)?.content.slice(0,120)||''
  }));
 }
 export function getActiveChat(){const c=currentChat();return {id:c.id,title:c.title,messageCount:c.messages.length};}
+export function getFolders(){
+ return brain.folders.map(f=>({...f,chatCount:brain.chats.filter(c=>c.folderId===f.id).length}));
+}
+export function createFolder(name){
+ const title=String(name||'').trim().replace(/\s+/g,' ').slice(0,55);
+ if(!title||brain.folders.length>=MAX_FOLDERS)return null;
+ const folder={id:'folder-'+newChatId(),name:title,createdAt:Date.now()};
+ brain.folders.push(folder);queueSave();return folder;
+}
+export function renameFolder(id,name){
+ const folder=brain.folders.find(f=>f.id===id),title=String(name||'').trim().replace(/\s+/g,' ').slice(0,55);
+ if(!folder||!title)return false;folder.name=title;queueSave();return true;
+}
+export function deleteFolder(id){
+ const index=brain.folders.findIndex(f=>f.id===id);if(index<0)return false;
+ brain.folders.splice(index,1);
+ for(const c of brain.chats)if(c.folderId===id)c.folderId=null;
+ queueSave();return true;
+}
+export function moveChatToFolder(chatId,folderId=null){
+ const chat=brain.chats.find(c=>c.id===chatId);
+ if(!chat||(folderId&&!brain.folders.some(f=>f.id===folderId)))return false;
+ chat.folderId=folderId||null;chat.updatedAt=Date.now();queueSave();return true;
+}
+
 export function createChat(){
  const chat=createChatRecord();brain.chats.push(chat);brain.activeChatId=chat.id;
  syncActiveHistory();trimChats();queueSave();return {id:chat.id,title:chat.title};
@@ -289,7 +317,7 @@ export function recall(message,language='es'){
  }
  return best;
 }
-export function stats(){return {turns:brain.turns,examples:brain.examples.length,weights:Object.keys(brain.features).length,memory:Object.keys(brain.facts).length,history:brain.history.length,chats:brain.chats.length,seeded:brain.seeded,seedVersion:brain.seedVersion};}
+export function stats(){return {turns:brain.turns,examples:brain.examples.length,weights:Object.keys(brain.features).length,memory:Object.keys(brain.facts).length,history:brain.history.length,chats:brain.chats.length,folders:brain.folders.length,seeded:brain.seeded,seedVersion:brain.seedVersion};}
 export function inspectMemory(){
  const facts=Object.entries(brain.facts).map(([key,info])=>({key,label:info?.label||key,value:String(info?.value||''),date:info?.at||0}));
  const history=getHistory().slice(-24).map(x=>({role:x.role,text:x.content.slice(0,160),lang:x.lang}));
@@ -315,6 +343,18 @@ export async function exportWeights(){
  const blob=new Blob([JSON.stringify(brain,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=FILE;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+// Cloud backups are deliberate snapshots, never API keys or OAuth tokens.
+// A restore is destructive and must require confirmation in the interface.
+export async function exportCloudSnapshot(){
+ await ready();
+ return {format:'otaai-drive-v1',createdAt:Date.now(),data:JSON.parse(JSON.stringify(brain))};
+}
+export async function restoreCloudSnapshot(snapshot){
+ await ready();
+ if(!snapshot||snapshot.format!=='otaai-drive-v1'||!valid(snapshot.data))throw Error('Invalid OtaAI Drive backup');
+ brain=migrate(snapshot.data);seed();syncActiveHistory();await save();return stats();
+}
+
 export async function importWeights(file){
  if(!file||file.size>5*1024*1024)throw new Error('Archivo demasiado grande.');
  const parsed=JSON.parse(await file.text());if(!valid(parsed))throw new Error('Archivo inválido.');
@@ -330,13 +370,15 @@ export async function importWeights(file){
  }
  brain.turns=Math.max(brain.turns,old.turns);
  for(const x of old.examples)if(x&&typeof x.q==='string'&&typeof x.a==='string'&&!brain.examples.some(y=>y.q===x.q&&y.lang===x.lang))brain.examples.push(x);
- const incoming=parsed.version===3&&Array.isArray(parsed.chats)
+ const incoming=parsed.version>=3&&Array.isArray(parsed.chats)
    ?old.chats.filter(c=>c.messages.length)
    :(old.history.length?[createChatRecord('Imported conversation',old.history)]:[]);
  for(const chat of incoming){
    if(!brain.chats.some(c=>c.id===chat.id))brain.chats.push(chat);
  }
  trimChats();syncActiveHistory();
+ for(const folder of old.folders||[])if(!brain.folders.some(f=>f.id===folder.id)&&brain.folders.length<MAX_FOLDERS)brain.folders.push(folder);
+ for(const chat of brain.chats){const imported=old.chats.find(c=>c.id===chat.id);if(imported?.folderId&&brain.folders.some(f=>f.id===imported.folderId))chat.folderId=imported.folderId;}
  Object.assign(brain.facts,old.facts);
  if(parsed.version===1)for(const example of old.examples)if(typeof example.q==='string')rememberFact(example.q);
  seed();cleanExamples();await save();return stats();
