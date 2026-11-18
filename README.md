@@ -1,20 +1,22 @@
-# OtaAI 4.0
+# OtaAI 1.0
 
-OtaAI is a dark-red, local-first browser AI workspace with conversations, Markdown, basic reasoning, persistent memories, chat folders, and optional Google Drive backups.
+OtaAI is a multi-theme, local-first browser AI workspace with conversations, Markdown, basic reasoning, persistent memories, chat folders, and optional Google Drive backups.
 
 **Website:** https://ota-seb.github.io/MiniGPT/
 
 The repository and GitHub Pages address keep the old path for backward compatibility. The product's new name is **OtaAI**.
 
-## What's new
+## OtaAI 1.0 interface
 
-- Complete **crimson and charcoal redesign** for PC and mobile: the chat, message bubbles, composer, buttons, sidebar, folders, settings, saved memories, weights, and API key fields.
-- Everything is organized in **one sidebar**: saved chats and folders, memory and weights, settings and API keys, personalization, and Google Drive.
-- Create, search, rename and delete chats. Create, rename and delete folders; move chats between folders. Deleting a folder keeps its chats in the unfiled list.
-- Personalization: crimson, deep wine or rose palettes, larger or smaller message text, comfortable or compact spacing.
-- Markdown rendering for both users and OtaAI: headings, bold, italics, strikethrough, blockquotes, lists, simple task checkboxes, tables, inline code, fenced code blocks with syntax coloring and copy buttons, safe HTTP(S) links. HTML input is treated as text, never executed.
-- Markdown preview and formatting buttons in the textarea; Enter sends, Shift+Enter adds a newline.
-- Local memory records can be added, searched, viewed or deleted individually.
+- **Official OtaAI star logo**, adapted from the supplied artwork, used in the app header and favicon.
+- **Default theme:** deep crimson, dark pink and charcoal. Two different palettes, **blue with purple accents** and **yellow with orange accents**, are also available. All three have **dark and light** versions.
+- Responsive layout for desktop, tablet and phone, including a collapsible workspace sidebar on mobile.
+- **Edit a conversation name directly** by clicking its title at the top of the chat. Press Enter or click elsewhere to save; Escape cancels. The rename icon in the sidebar selects the conversation and focuses that title field. No rename popup.
+- Conversation folders, shared memories, learned weights, API keys, personalization and Google Drive remain in the sidebar.
+- **Automatic Markdown** for messages from both user and assistant: type the raw syntax such as **, *, backticks, code fences, lists and tables. Rendered messages display formatting automatically; the compose box needs no formatting toolbar or preview switch. Raw HTML stays plain text and HTTP(S) links are restricted.
+- **Compact source indicator on assistant messages** (top-left): 🧠 for trained local model answers or external AI; tap for estimated match confidence or the chosen API model. 🧩 for automatic/reference/memory/rule-based responses; tap for the keyword or specific rule that triggered the response. Exact detected keywords are surfaced when present. Older saved replies without provenance are labeled accordingly rather than guessed.
+- Response metadata is saved in local chat history and Drive backups, so the indicator still works after reopening a conversation.
+- Removed suggested prompts, repeated response-status labels, and unused formatting controls to keep the interface uncluttered.
 
 ## Google Drive backup (without a custom database)
 
@@ -52,9 +54,9 @@ OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full
 ## Files
 
 - docs/index.html: branded workspace, sidebar and Google Sign-In script.
-- docs/style.css: full responsive crimson appearance and Markdown styling.
-- docs/app.js: chat, folders, Markdown editor, memory, personalization, optional API, Google backup UI.
-- docs/markdown.js: safe Markdown DOM renderer.
+- docs/style.css: full responsive 6-mode appearance and Markdown styling.
+- docs/app.js: chat, folders, automatic Markdown display, source indicators, inline chat titles, personalization, optional API, Google backup UI.
+- docs/markdown.js: safe Markdown DOM renderer.\n- docs/otaai-logo.svg: compact embedded rendition of the supplied official OtaAI star artwork.
 - docs/google-drive.js: Google OAuth token flow and appDataFolder REST backup.
 - docs/learning.js: local model persistence, memory, chats, folders, import/export and cloud snapshots.
 - docs/default-model.js, docs/fallback.js, docs/extra-topics.js, docs/i18n.js, docs/reasoning.js: existing model logic.
