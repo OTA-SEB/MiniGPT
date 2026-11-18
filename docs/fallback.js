@@ -1,5 +1,5 @@
 // Cien conversaciones temáticas, cinco respuestas por cada tema.
-import { detectLanguage,matchAliases,topicText,topicPhrase,localText } from './i18n.js';
+import { detectLanguage,matchAliases,topicText,topicPhrase,localText } from './i18n.js?v=1.4';
 const rows=[
 ["panes,1+1,pan","dos panes","partirse en cuatro mitades","1+1=2 panes, pero al partirlos quedan cuatro mitades. 🍞|¡EL TEOREMA DEL PAN! XDDD|Dos panes enteros o cuatro mitades, bro.|Dos panes y una lógica impecable.|El pan sigue siendo pan, aunque ahora tenga cuatro mitades."],
 ["hola,holi,buenas,hey","MiniGPT","saludar","¡HOLAAAA, BROOO! 🤖|¡Buenas! ¿Qué hacemos hoy?|¡MiniGPT reportándose!|Saludo recibido, conversación activada.|¡HOLA OTRA VEZ! ¿Qué aventura toca hoy? 🤖"],
