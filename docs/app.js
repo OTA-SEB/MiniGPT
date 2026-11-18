@@ -10,12 +10,13 @@ import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural
 import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.4';
 import { setupComposer } from './composer.js?v=1.4';
 import { generateLocally,chooseGenerativeModel,generativeModel,watchGenerative,cancelGeneration,resetGenerativeWorker } from './generative.js?v=1.5';
+import {routeResponse} from './response-router.js?v=1.6';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.4';
 
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
 const defaults={openrouter:'openrouter/free',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash'};
-const messages=[];let busy=false,lastLanguage='en',inspectorTab='memory';
+const messages=[];let busy=false,lastLanguage='es',inspectorTab='memory';
 const threshold=el('confidence-threshold');
 try{const saved=localStorage.getItem('otaai.threshold')||localStorage.getItem('minigpt.threshold');if(['80','90','95'].includes(saved))threshold.value=saved;}catch{}
 threshold.addEventListener('change',()=>{
@@ -528,34 +529,26 @@ form.addEventListener('submit',async event=>{
  for(const entry of memoryBlocks(value))saveMemoryFact(entry.name||entry.content.slice(0,50),entry.content);
  busy=true;el('send').disabled=true;composer.disable(true);composer.clear();updateComposer();
  el('typing-status').textContent='OtaAI is responding…';
- const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
+ const ctx=detectLanguage(value,lastLanguage||'es');lastLanguage=ctx.primary;
  
  document.documentElement.lang=lastLanguage;
  bubble('user',value);messages.push({role:'user',content:value});
  try{
   await ready();
-  let result=null,source='local',lastFailure='';
-  // This order is intentional: generative AI first. Topic/rule/keyword replies
-  // are strictly a fallback, never the main response engine.
-  if(key.value.trim()){
-   state('🌐 Generating with external AI...');
-   try{
-    result={text:await ask(messages,key.value.trim(),ctx),mode:'api',confidence:null,
-     model:model.value.trim()||defaults[provider.value],provider:provider.value};
-    source='api';
-   }catch(error){lastFailure='External AI unavailable: '+String(error?.message||error).slice(0,85);}
-  }
-  if(!result){
-   try{
-    result=await tryGenerativeAnswer(ctx);
-    if(result?.cancelled){state('Generation cancelled');return;}
-   }catch(error){lastFailure='Generative model unavailable: '+String(error?.message||error).slice(0,85);}
-  }
-  if(!result){
-   result=await localAnswer(value,ctx);
-   const cause=lastFailure||'No generative response';
-   result.trigger='Automatic fallback · '+cause+(result.trigger?' · '+result.trigger:'');
-  }
+  // Generative response first, deterministic/classifier answers LAST.
+  const routed=await routeResponse({
+   apiKey:key.value.trim(),
+   onExternalStart:()=>state('🌐 Generating with external AI...'),
+   external:async()=>({
+    text:await ask(messages,key.value.trim(),ctx),
+    mode:'api',confidence:null,
+    model:model.value.trim()||defaults[provider.value],provider:provider.value
+   }),
+   local:()=>tryGenerativeAnswer(ctx),
+   fallback:()=>localAnswer(value,ctx)
+  });
+  if(routed.cancelled){state('Generation cancelled');return;}
+  const {result,source}=routed;
   showResult(result,ctx);
   const topics=detectTopics(value,ctx.primary);
   learn(value,result.text,topics.length?topics:predictTopics(value),source,languageKey(ctx),result);
