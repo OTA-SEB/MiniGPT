@@ -154,6 +154,21 @@ for(const [id,aliases] of Object.entries(ROMAJI_TOPICS)){
  for(const word of aliases)for(const p of ['', 'watashi wa ', 'suki ', 'kore wa '])
   ingest(p+word,'ja','topic:'+id,'topic');
 }
+// Bounded, balanced supervised samples for the browser neural model.
+// These strings are synthetic/public topic templates, never private conversations.
+export function neuralTrainingExamples(maxPerLabelAndLang=9){
+ const cap=Math.max(2,Math.min(16,Number(maxPerLabelAndLang)||9));
+ const counts=new Map(),rows=[];
+ for(const lang of ['es','en','pt','ja']){
+  for(const item of byLang.get(lang)||[]){
+   const key=lang+':'+item.id,count=counts.get(key)||0;
+   if(count>=cap||!item.raw||item.raw.length>180)continue;
+   rows.push({text:item.raw,lang,label:item.id});
+   counts.set(key,count+1);
+  }
+ }
+ return rows;
+}
 export const trainingStats={examples,intents:Object.keys(DIALOG.es).length*4,topics:topics.length,weights:[...vocab.values()].reduce((sum,v)=>sum+v.size,0),languages:Object.fromEntries([...byLang].map(([k,v])=>[k,v.length]))};
 function similarity(a,b){
  let dot=0,aa=0,bb=0;
