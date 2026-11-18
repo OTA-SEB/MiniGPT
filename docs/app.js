@@ -5,6 +5,7 @@ import { reason } from './reasoning.js?v=1.0';
 import { PERSONA } from './personality.js?v=1.0';
 import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.0';
 import { renderMarkdown } from './markdown.js?v=1.0';
+import { setupComposer } from './composer.js?v=1.1';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.0';
 
 const el=id=>document.getElementById(id);
@@ -30,14 +31,13 @@ for(const [name,options] of Object.entries(prefs)){
   try{localStorage.setItem('otaai.'+name,control.value);}catch{}
  });
 }
-// Markdown renders automatically after sending; only the source symbols are typed.
+// Formatting is applied INSIDE the editor as Markdown syntax is completed.
+// Enter inserts a newline. Only the Send button or Ctrl/Cmd+Enter submits.
+const composer=setupComposer(input,()=>form.requestSubmit());
 function updateComposer(){
- input.style.height='auto';input.style.height=Math.min(185,Math.max(58,input.scrollHeight||58))+'px';
+ input.style.height='auto';
+ input.style.height=Math.min(185,Math.max(58,input.scrollHeight||58))+'px';
 }
-input.addEventListener('input',updateComposer);
-input.addEventListener('keydown',event=>{
- if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}
-});
 function setGoogleStatus(message){el('google-status').textContent=message;}
 function updateGoogleUI(){
  const connected=driveConnected();
@@ -210,7 +210,7 @@ function renderActiveChat(){
   const last=[...history].reverse().find(m=>m.role==='user');
   lastLanguage=last?detectLanguage(last.content,'en').primary:'en';
  }else{lastLanguage='en';}
- input.placeholder='Message OtaAI...';
+
  document.documentElement.lang=lastLanguage;
  renderConversationList();if(activePanel==='inspector')renderInspector();
 }
@@ -421,11 +421,11 @@ async function ask(history,secret,ctx){
 }
 form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy)return;
- const value=input.value.trim();if(!value)return;
- busy=true;el('send').disabled=true;input.disabled=true;input.value='';updateComposer();
+ const value=composer.value().trim();if(!value)return;
+ busy=true;el('send').disabled=true;composer.disable(true);composer.clear();updateComposer();
  el('typing-status').textContent='OtaAI is responding…';
  const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
- input.placeholder='Message OtaAI...';
+ 
  document.documentElement.lang=lastLanguage;
  bubble('user',value);messages.push({role:'user',content:value});
  try{
@@ -448,7 +448,7 @@ form.addEventListener('submit',async event=>{
   bubble('assistant','A local error occurred. Please try sending that message again.');
   state('OtaAI error');
  }finally{
-  busy=false;el('send').disabled=false;input.disabled=false;input.focus();
-  el('typing-status').textContent='Markdown supported · Enter to send';updateComposer();
+  busy=false;el('send').disabled=false;composer.disable(false);input.focus();
+  el('typing-status').textContent='Enter: new line · Ctrl+Enter: send';updateComposer();
  }
 });
