@@ -80,12 +80,13 @@ function addWeight(key,id,amount=1){
  row[id]=Math.min(60,Math.max(0,Number(row[id])||0)+amount);
 }
 function seed(){
- if(brain.seedVersion>=4)return;
+ if(brain.seedVersion>=5)return;
  const changed=new Set([0,32,33,34,35,36,37,38,39,40,41,73]);
  // IDs previously reserved for custom themes now have neutral meanings.
  if(brain.seedVersion>=3)for(const row of Object.values(brain.features))for(const id of changed)delete row[id];
  const topics=trainingTopics();
  for(let id=0;id<topics.length;id++){
+   if(brain.seedVersion>=4&&id<200)continue;
    if(brain.seedVersion>=3&&id<100&&!changed.has(id))continue;
    const aliases=[...topics[id],...aliasForTopic(id,'en'),...aliasForTopic(id,'pt'),...aliasForTopic(id,'ja')];
    for(const alias of new Set(aliases)){
@@ -103,7 +104,7 @@ function seed(){
    for(const key of features(word))addWeight(key,+id,key.startsWith('w:')?5:0.5);
  }
  brain.seeded=true;
- brain.seedVersion=4;
+ brain.seedVersion=5;
 }
 async function load(){
  let parsed=null;
