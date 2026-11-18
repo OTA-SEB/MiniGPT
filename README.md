@@ -55,6 +55,7 @@ Google backup files contain private user data under the selected Google account.
 1. If the user supplies an external API key, the chosen external generative model writes the answer.
 2. Otherwise, or if the external API fails, the app tries a **real pretrained browser-based generative language model** (new words generated token-by-token, not selected by topic).
 3. **Only when neither model returns a usable response** does OtaAI call the old memory, rule-based reasoning, multilingual statistical matcher, classifier, or curated topics. The fallback reason is visible through the 🧩 icon.
+   This policy is enforced centrally by `docs/response-router.js`, rather than relying on the order of unrelated chat handlers.
 4. If the user cancels local generation, **no automatic topic answer is substituted**.
 
 The browser models are hosted by Hugging Face, loaded with Transformers.js 4.3.2 from jsDelivr and cached when the browser supports caching. They are **not** invented/trained from scratch by this repository:
@@ -90,6 +91,10 @@ OtaAI also retains the previously implemented **400-topic** reference library, s
 - The original user-defined grammar marker **AX** is recognized as emphasizing choices following it in a list.
 
 Confidence percentages remain heuristic similarity scores and must never be treated as calibrated probabilities. Unsupported requests may still receive a generic fallback.
+
+### Regression tests
+
+Run `node --test tests/response-router.test.mjs` to verify that API and local generative answers always outrank automatic fallbacks, that a fallback only runs on missing/failed generation, and that cancelling never produces an automatic replacement.
 
 ## OtaAI tag language (not XML/HTML)
 
@@ -131,6 +136,9 @@ OtaAI recognizes a small **custom tag syntax**, parsed as text rather than HTML.
 - docs/google-drive.js: Google OAuth token flow and appDataFolder REST backup.
 - docs/learning.js: local model persistence, memory, chats, folders, import/export and cloud snapshots.
 - docs/default-model.js, docs/fallback.js, docs/extra-topics.js, docs/i18n.js, docs/reasoning.js: existing model logic.
+- docs/response-router.js: single generative-first response policy; automatic responses run only as fallback.
+- docs/generative.js and docs/generative-worker.js: pretrained browser models, download progress, streaming and cancellation.
+- tests/response-router.test.mjs: regression checks for response priority and cancellation.
 - docs/personality.js: optional external AI personality prompt.
 
 ## Compatibility and data safety
