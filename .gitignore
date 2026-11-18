@@ -1,0 +1,4 @@
+apikey.txt
+.env
+node_modules/
+*.log
