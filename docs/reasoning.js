@@ -4,6 +4,36 @@ export function reason(input,lang='en'){
  const raw=String(input||'').trim();if(raw.length>6000)return null;
  const l=raw.toLowerCase(),loc=(en,es,pt,ja)=>({en,es,pt,ja}[lang]||en);
  const done=(text,kind,confidence=99)=>({text,kind,confidence});
+ // Explicit, reproducible multi-step symbolic reasoning, with intermediate steps.
+ const linear=raw.match(/^(?:(?:resuelve|resolver|solve|resolve|encuentra x|find x)\s*:?\s*)?([+-]?\d*(?:\.\d+)?)\s*[xX]\s*([+-]\s*\d+(?:\.\d+)?)?\s*=\s*([+-]?\d+(?:\.\d+)?)\s*\??$/i);
+ if(linear){
+  const aStr=linear[1].replace(/\s/g,''),a=aStr===''||aStr==='+'?1:aStr==='-'?-1:Number(aStr);
+  const b=Number((linear[2]||'0').replace(/\s/g,'')),c=Number(linear[3]);
+  if(Number.isFinite(a)&&Number.isFinite(b)&&Number.isFinite(c)&&a!==0){
+   const x=(c-b)/a;
+   if(Number.isFinite(x)&&Math.abs(x)<1e12)return done(
+    'Equation: '+a+'x + ('+b+') = '+c+'. Subtract '+b+': '+a+'x = '+(c-b)+'. Divide by '+a+': x = '+Number(x.toFixed(9))+'.',
+    'linear-equation');
+  }
+ }
+ const percent=raw.match(/(?:cu[aá]nto es|calcula|what is|quanto [eé])\s+(?:el\s+)?(\d+(?:[.,]\d+)?)\s*%\s*(?:de|of)\s*(\d+(?:[.,]\d+)?)/i);
+ if(percent){
+  const p=Number(percent[1].replace(',','.')),n=Number(percent[2].replace(',','.')),v=n*p/100;
+  if(Number.isFinite(v))return done(p+'% × '+n+' = '+n+' × ('+p+'/100) = '+Number(v.toFixed(8))+'.','percent');
+ }
+ const gcd=raw.match(/(?:mcd|gcd|mdc)\s*\(?\s*(\d{1,10})\s*[,; ]\s*(\d{1,10})\s*\)?/i);
+ if(gcd){
+  let a=Number(gcd[1]),b=Number(gcd[2]),steps=[];
+  while(b!==0){const r=a%b;steps.push(a+' = '+b+'×'+Math.floor(a/b)+' + '+r);a=b;b=r;}
+  return done('Euclid: '+steps.join('; ')+'. GCD = '+a+'.','euclidean-algorithm');
+ }
+ const prime=raw.match(/(?:es primo|is prime|[eé] primo|素数)\s*(\d{1,9})/i);
+ if(prime){
+  const n=Number(prime[1]);let d=2;
+  while(d*d<=n&&n%d!==0)d++;
+  return done(n<2?n+' is not prime.':d*d>n?n+' is prime: no divisor from 2 to √'+n+'.':n+' is not prime: divisible by '+d+'.','prime-test');
+ }
+
  const code=answerCodeRequest(raw,lang)||inspectCodeText(raw,lang);
  if(code)return done(code.text,code.kind,90);
  if(/(?:qu[eé] es|qu[eé] significa|what is|what does)\s+ax\b/i.test(raw))
