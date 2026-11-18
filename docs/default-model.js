@@ -136,7 +136,18 @@ export function respondDefault(p,lang=p?.lang||'es'){
  const outlang=DIALOG[lang]?lang:p.lang;
  const responses=DIALOG[outlang]?.[p.id]?.a||DIALOG[p.lang]?.[p.id]?.a;
  if(responses)return sampleResponses(responses,Math.floor(p.percent/10));
- // Los temas específicos se manejan en el modo temático, no se finge un LLM.
+ if(String(p.id).startsWith('topic:')){
+  const index=Number(p.id.slice(6)),names=trainingTopics()[index];
+  if(!names)return null;
+  const name=outlang==='es'?names[0]:(aliasForTopic(index,outlang)[0]||names[0]);
+  const answers={
+   es:[`¡${name}! 😎 Podemos hablar de eso. ¿Qué te interesa?`,`Bro, ${name} tiene tema para rato. ¿Qué quieres explorar?`,`¡Vamos con ${name}! ¿Qué parte te llama la atención?`],
+   en:[`Oh, ${name}! What do you want to explore? 🤖`,`We can talk about ${name}, bro! What's on your mind?`],
+   pt:[`Ah, ${name}! Sobre o que você quer conversar? 🤖`,`Bora falar sobre ${name}! O que te interessa?`],
+   ja:[`${name}の話だね！何が気になる？🤖`,`${name}について話そう！どこから始める？`]
+  };
+  return sampleResponses(answers[outlang]||answers.es,index);
+ }
  return null;
 }
 export function defaultWeightView(query='',limit=30){
