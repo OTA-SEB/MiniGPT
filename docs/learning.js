@@ -1,10 +1,10 @@
 // MiniGPT 2.1: modelo estadístico contextual con pesos iniciales,
 // aprendizaje incremental, memoria local y compatibilidad con archivos v1.
 // Inspirado en ideas de atención/recuperación; NO contiene pesos de Qwen.
-import { trainingTopics } from './fallback.js?v=2.1';
-import { aliasForTopic,romajiToKana } from './i18n.js?v=2.1';
+import { trainingTopics,topicCount } from './fallback.js?v=3.0';
+import { aliasForTopic,romajiToKana } from './i18n.js?v=3.0';
 const FILE='minigpt-pesos.json',BACKUP='minigpt.pesos.v1';
-const MAX_EXAMPLES=180,MAX_HISTORY=48,MAX_FEATURES=6000;
+const MAX_EXAMPLES=240,MAX_HISTORY=48,MAX_FEATURES=12500;
 const blank=()=>({version:2,turns:0,features:{},examples:[],history:[],facts:{},seeded:false,seedVersion:0});
 let brain=blank(),storageReady=null,saveTimer=null;
 const clean=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff ]+/g,' ').replace(/\s+/g,' ').trim();
@@ -22,14 +22,18 @@ function migrate(x){
  return {version:2,turns:Math.max(0,x.turns),features:x.features,examples:x.examples.slice(-MAX_EXAMPLES),history:Array.isArray(x.history)?x.history.slice(-MAX_HISTORY):[],facts:x.facts&&typeof x.facts==='object'&&!Array.isArray(x.facts)?x.facts:{},seeded:!!x.seeded,seedVersion:Number.isFinite(x.seedVersion)?x.seedVersion:(x.seeded?2:0)};
 }
 function addWeight(key,id,amount=1){
- if(!key||!Number.isInteger(id)||id<0||id>=100)return;
+ if(!key||!Number.isInteger(id)||id<0||id>=topicCount)return;
  const row=brain.features[key]||(brain.features[key]={});
  row[id]=Math.min(60,Math.max(0,Number(row[id])||0)+amount);
 }
 function seed(){
- if(brain.seedVersion>=3)return;
+ if(brain.seedVersion>=4)return;
+ const changed=new Set([0,32,33,34,35,36,37,38,39,40,41,73]);
+ // IDs previously reserved for custom themes now have neutral meanings.
+ if(brain.seedVersion>=3)for(const row of Object.values(brain.features))for(const id of changed)delete row[id];
  const topics=trainingTopics();
  for(let id=0;id<topics.length;id++){
+   if(brain.seedVersion>=3&&id<100&&!changed.has(id))continue;
    const aliases=[...topics[id],...aliasForTopic(id,'en'),...aliasForTopic(id,'pt'),...aliasForTopic(id,'ja')];
    for(const alias of new Set(aliases)){
      const variants=[alias];
@@ -46,7 +50,7 @@ function seed(){
    for(const key of features(word))addWeight(key,+id,key.startsWith('w:')?5:0.5);
  }
  brain.seeded=true;
- brain.seedVersion=3;
+ brain.seedVersion=4;
 }
 async function load(){
  let parsed=null;
@@ -138,7 +142,7 @@ export function learn(input,answer,topics=[],source='local',language='es'){
  const fs=features(input);
  brain.turns=(brain.turns||0)+1;
  rememberFact(input);
- for(const feature of fs)for(const id of topics.slice(0,5))if(Number.isInteger(id)&&id>=0&&id<100)addWeight(feature,id,feature.startsWith('w:')?1:0.3);
+ for(const feature of fs)for(const id of topics.slice(0,5))if(Number.isInteger(id)&&id>=0&&id<topicCount)addWeight(feature,id,feature.startsWith('w:')?1:0.3);
  const fallbackPhrases=["No puedo responder ahora mismo.","I can't answer that right now.","Não consigo responder isso agora.","今はそれに答えられないよ。"];
  if(typeof answer==='string'&&answer.trim()&&!fallbackPhrases.includes(answer.trim())&&fs.length){
   const entry={q:clean(input).slice(0,360),a:answer.slice(0,700),source:source==='api'?'api':'local',lang:language,fs:fs.slice(0,120)};
@@ -164,7 +168,7 @@ export function predictTopics(message){
   const influence=key.startsWith('w:')?2.4:key.startsWith('b:')?1.3:0.23;
   for(const [raw,weight] of Object.entries(row)){
    const id=+raw;
-   if(!Number.isInteger(id)||id<0||id>=100)continue;
+   if(!Number.isInteger(id)||id<0||id>=topicCount)continue;
    votes.set(id,(votes.get(id)||0)+influence*Math.min(8,Number(weight)||0));
    if(key.startsWith('w:'))wordHits.set(id,(wordHits.get(id)||0)+1);
   }
@@ -221,9 +225,9 @@ export async function importWeights(file){
  for(const [key,row] of Object.entries(old.features)){
   if(!row||typeof row!=='object')continue;
   for(const [id,value] of Object.entries(row)){
-   if(Number.isInteger(+id)&&Number.isFinite(value)&&value>0){
+   if(Number.isInteger(+id)&&+id>=0&&+id<topicCount&&Number.isFinite(value)&&value>0){
     const target=brain.features[key]||(brain.features[key]={});
-    target[id]=Math.max(Number(target[id])||0,Math.min(60,value));
+    if(![0,32,33,34,35,36,37,38,39,40,41,73].includes(+id))target[id]=Math.max(Number(target[id])||0,Math.min(60,value));
    }
   }
  }
