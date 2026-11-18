@@ -94,7 +94,8 @@ for(let index=0;index<topics.length;index++){
    const aliases=lang==='es'?topics[index]:aliasForTopic(index,lang);
    for(const a of aliases.filter(Boolean)){
      ingest(a,lang,'topic:'+index,'topic');
-     for(const p of OPENERS[lang])if(p)ingest(lang==='ja'&&p==='教えて '?p+a:a&&lang==='ja'?a+p:p+a,lang,'topic:'+index,'topic');
+     // Full English training; just one additional phrasing in other languages.
+     for(const p of (lang==='en'?OPENERS[lang]:OPENERS[lang].slice(0,2)))if(p)ingest(lang==='ja'&&p==='教えて '?p+a:a&&lang==='ja'?a+p:p+a,lang,'topic:'+index,'topic');
      if(lang==='en'&&index>=100){
        for(const p of ENGLISH_CODE_PROMPTS)for(const suffix of CODE_SUFFIXES)ingest(p+a+suffix,lang,'topic:'+index,'topic');
        for(const phrase of ['a quick overview of ','the basics of ','a short explanation of ','understanding ','concept of '])ingest(phrase+a,lang,'topic:'+index,'topic');
