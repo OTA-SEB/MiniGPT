@@ -1,8 +1,8 @@
-// MiniGPT 2.0: modelo estadístico contextual con pesos iniciales,
+// MiniGPT 2.1: modelo estadístico contextual con pesos iniciales,
 // aprendizaje incremental, memoria local y compatibilidad con archivos v1.
 // Inspirado en ideas de atención/recuperación; NO contiene pesos de Qwen.
-import { trainingTopics } from './fallback.js?v=2.0';
-import { aliasForTopic,romajiToKana } from './i18n.js?v=2.0';
+import { trainingTopics } from './fallback.js?v=2.1';
+import { aliasForTopic,romajiToKana } from './i18n.js?v=2.1';
 const FILE='minigpt-pesos.json',BACKUP='minigpt.pesos.v1';
 const MAX_EXAMPLES=180,MAX_HISTORY=48,MAX_FEATURES=6000;
 const blank=()=>({version:2,turns:0,features:{},examples:[],history:[],facts:{},seeded:false,seedVersion:0});
