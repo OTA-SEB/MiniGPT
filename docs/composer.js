@@ -26,7 +26,7 @@ function sourceOf(node){
  if(/^h[1-6]$/.test(tag))return '#'.repeat(Number(tag.slice(1)))+' '+children()+'\n';
  if(tag==='ul')return Array.from(node.children).filter(x=>x.tagName==='LI').map(x=>'- '+Array.from(x.childNodes).map(sourceOf).join('')).join('\n')+'\n';
  if(tag==='ol')return Array.from(node.children).filter(x=>x.tagName==='LI').map((x,i)=>(i+1)+'. '+Array.from(x.childNodes).map(sourceOf).join('')).join('\n')+'\n';
- if(tag==='blockquote')return children().split('\n').map(line=>'> '+line).join('\n')+'\n';
+ if(tag==='blockquote')return plain(node).replace(/\n+$/,'').split('\n').map(line=>'> '+line).join('\n')+'\n';
  if(tag==='li')return children();
  if(tag==='p'||tag==='div')return children()+'\n';
  return children();
@@ -102,19 +102,16 @@ function beginCodeFence(editor){
  return replaceTextTail(info,line.length,pre,code);
 }
 function closeCodeFence(editor){
- const info=caretInside(editor);if(!info||info.node.nodeType!==3)return false;
+ const info=caretInside(editor);if(!info)return false;
  const pre=inside(info.node,'pre.composer-code');if(!pre)return false;
- const before=info.node.nodeValue.slice(0,info.offset);
- const line=before.slice(before.lastIndexOf('\n')+1);
- if(line!=='\x60\x60\x60')return false;
- const current=info.node.nodeValue;
- info.node.nodeValue=current.slice(0,info.offset-3)+current.slice(info.offset);
- // Remove the newline preceding the closing fence, if present.
- if(info.offset>3&&info.node.nodeValue[info.offset-4]==='\n'){
-  info.node.nodeValue=info.node.nodeValue.slice(0,info.offset-4)+info.node.nodeValue.slice(info.offset-3);
- }
+ const code=pre.querySelector('code');if(!code)return false;
+ const entire=plain(code);
+ // Closing line works even when Enter split the code into several text nodes.
+ if(!/(^|\n)\x60{3}$/.test(entire))return false;
+ code.textContent=entire.replace(/(?:^|\n)\x60{3}$/,'');
  const next=document.createElement('div');next.append(document.createElement('br'));
- pre.after(next);const range=document.createRange();range.setStart(next,0);range.collapse(true);
+ pre.after(next);
+ const range=document.createRange();range.setStart(next,0);range.collapse(true);
  info.sel.removeAllRanges();info.sel.addRange(range);
  return true;
 }
@@ -124,7 +121,7 @@ function insertTextAtCaret(editor,text){
  range.deleteContents();
  const node=document.createTextNode(text);
  range.insertNode(node);
- const after=document.createRange();after.setStartAfter(node);after.collapse(true);sel.removeAllRanges();sel.addRange(after);
+ const after=document.createRange();after.setStart(node,text.length);after.collapse(true);sel.removeAllRanges();sel.addRange(after);
 }
 export function setupComposer(editor,submit){
  let composing=false;
