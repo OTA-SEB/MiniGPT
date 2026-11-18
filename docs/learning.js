@@ -1,4 +1,4 @@
-// MiniGPT 3.1: modelo estadístico contextual con pesos iniciales,
+// OtaAI 4.0: modelo estadístico contextual con pesos iniciales,
 // aprendizaje incremental, memoria local y compatibilidad con archivos v1.
 // Inspirado en ideas de atención/recuperación; NO contiene pesos de Qwen.
 import { trainingTopics,topicCount } from './fallback.js?v=3.0';
@@ -22,7 +22,7 @@ function newChatId(){return 'chat-'+Date.now().toString(36)+'-'+Math.random().to
 function safeMessages(value){
  if(!Array.isArray(value))return [];
  return value.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string')
-   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,2000),lang:m.lang||'en'}));
+   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,6000),lang:m.lang||'en'}));
 }
 function createChatRecord(title='New conversation',messages=[]){
  const now=Date.now();
@@ -272,8 +272,8 @@ export function learn(input,answer,topics=[],source='local',language='es'){
  if(!chat.messages.some(m=>m.role==='user')&&chat.title==='New conversation'){
    chat.title=String(input).replace(/\s+/g,' ').trim().slice(0,52)||'New conversation';
  }
- chat.messages.push({role:'user',content:String(input).slice(0,2000),lang:language},
-                    {role:'assistant',content:String(answer).slice(0,1500),lang:language});
+ chat.messages.push({role:'user',content:String(input).slice(0,6000),lang:language},
+                    {role:'assistant',content:String(answer).slice(0,6000),lang:language});
  chat.messages=chat.messages.slice(-MAX_CHAT_MESSAGES);
  chat.updatedAt=Date.now();
  syncActiveHistory();
@@ -341,7 +341,7 @@ export function inspectWeights(query='',limit=90){
 export async function exportWeights(){
  await ready();await save();
  const blob=new Blob([JSON.stringify(brain,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download=FILE;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ a.href=url;a.download='otaai-local-data.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 // Cloud backups are deliberate snapshots, never API keys or OAuth tokens.
 // A restore is destructive and must require confirmation in the interface.
