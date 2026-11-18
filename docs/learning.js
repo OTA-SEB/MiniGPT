@@ -22,7 +22,7 @@ function newChatId(){return 'chat-'+Date.now().toString(36)+'-'+Math.random().to
 function cleanResponseMeta(value){
  if(!value||typeof value!=='object')return null;
  const mode=String(value.mode||'').slice(0,30);
- if(!['trained','neural','api','reference','fallback','reasoning','memory','recall'].includes(mode))return null;
+ if(!['trained','neural','api','generative','reference','fallback','reasoning','memory','recall'].includes(mode))return null;
  return {mode,confidence:Number.isFinite(value.confidence)?Math.max(0,Math.min(100,value.confidence)):null,
   trigger:String(value.trigger||'').slice(0,160),model:String(value.model||'').slice(0,100),
   provider:String(value.provider||'').slice(0,35)};
