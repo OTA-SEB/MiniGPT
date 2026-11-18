@@ -1,9 +1,9 @@
 // Verified multi-topic composition: retrieves individual curated explanations
 // rather than inventing a general-purpose answer.
-import {detectTopicMatches} from './fallback.js?v=1.3';
-import {respondDefault} from './default-model.js?v=1.3';
-import {topicPhrase} from './i18n.js?v=1.3';
-import {worldTopics} from './world-topics.js?v=1.3';
+import {detectTopicMatches} from './fallback.js?v=1.4';
+import {respondDefault} from './default-model.js?v=1.4';
+import {topicPhrase} from './i18n.js?v=1.4';
+import {worldTopics} from './world-topics.js?v=1.4';
 const connectors=/\b(?:y|and|e|ou|vs|versus|comparar|compara|compare|comparison|diferencia|diferença|difference)\b|と|や|比較/u;
 export function composeTopicAnswer(input,language='es'){
  const text=String(input||'');
