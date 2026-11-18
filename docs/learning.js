@@ -5,7 +5,7 @@ let brain=blank(),saveTimer=null,storageReady=null;
 const clean=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9faf ]+/g,' ').replace(/\s+/g,' ').trim();
 const ignored=new Set('un una unos unas el la los las de del a al y o en que qué por para con sin se es soy eres era esta este esto su tu mi me te lo le ya no si sí yo tú bro xd xddd pues como muy pero algo hola hay esto eso como'.split(' '));
 function features(message){
- const words=clean(message).split(' ').filter(w=>w.length>=3&&!ignored.has(w)).slice(0,35);
+ const words=clean(message).split(' ').filter(w=>(w.length>=3||/[\u3040-\u30ff\u4e00-\u9fff]/u.test(w))&&!ignored.has(w)).slice(0,35);
  const out=new Set(words.map(w=>'w:'+w));
  for(let i=1;i<words.length;i++)out.add('b:'+words[i-1]+'_'+words[i]);
  for(const word of words.filter(w=>w.length>=5)){
@@ -39,7 +39,7 @@ async function save(){
  }catch{}
 }
 function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{void save();},400);}
-export function learn(input,answer,topics=[],source='fallback'){
+export function learn(input,answer,topics=[],source='fallback',language='es'){
  const fs=features(input);
  brain.turns=(brain.turns||0)+1;
  // Pesos entrenables: asociación entre características de texto y temas.
@@ -51,7 +51,7 @@ export function learn(input,answer,topics=[],source='fallback'){
  }
  // Aprende de respuestas reales y de diálogos automáticos útiles, sin pedir lecciones.
  if(typeof answer==='string'&&answer.trim()&&answer!=='No puedo responder ahora mismo.'&&fs.length){
-   const entry={q:clean(input).slice(0,360),a:answer.slice(0,700),source:source==='api'?'api':'local',fs:fs.slice(0,120)};
+   const entry={q:clean(input).slice(0,360),a:answer.slice(0,700),source:source==='api'?'api':'local',lang:language,fs:fs.slice(0,120)};
    const old=brain.examples.findIndex(x=>x.q===entry.q);
    if(old>=0)brain.examples.splice(old,1);
    brain.examples.push(entry);
@@ -77,11 +77,11 @@ export function predictTopics(message){
  return [...votes].filter(([,score])=>score>=Math.max(3,fs.length*0.22))
    .sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id])=>id);
 }
-export function recall(message){
+export function recall(message,language='es'){
  const fs=new Set(features(message));if(fs.size===0)return null;
  let best=null,score=0;
  for(const example of brain.examples){
-   if(!Array.isArray(example.fs)||typeof example.a!=='string')continue;
+   if(!Array.isArray(example.fs)||typeof example.a!=='string'||(example.lang||'es')!==language)continue;
    const overlap=example.fs.reduce((n,f)=>n+(fs.has(f)?1:0),0);
    const similarity=overlap/Math.max(1,Math.sqrt(fs.size*example.fs.length));
    const threshold=example.source==='api'?0.64:0.9;
