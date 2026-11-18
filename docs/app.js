@@ -6,6 +6,7 @@ import { PERSONA } from './personality.js?v=1.2';
 import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.2';
 import { renderMarkdown } from './markdown.js?v=1.2';
 import { memoryBlocks } from './ota-tags.js?v=1.2';
+import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.3';
 import { setupComposer } from './composer.js?v=1.2';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.2';
 
@@ -96,11 +97,12 @@ function bubble(role,text,meta=null,sentAt=Date.now()){
  const item=element('article','bubble '+(role==='user'?'user':'bot'));
  if(role!=='user'){
   const origin=meta&&typeof meta==='object'?meta:{mode:'fallback',trigger:'Not recorded for this older message'};
-  const brain=['api','trained'].includes(origin.mode),button=element('button','origin-button'+(brain?' origin-brain':' origin-puzzle'),brain?'🧠':'🧩');
+  const brain=['api','trained','neural'].includes(origin.mode),button=element('button','origin-button'+(brain?' origin-brain':' origin-puzzle'),brain?'🧠':'🧩');
   button.type='button';button.title=brain?'AI source details':'Automatic response details';
   button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded','false');
   const detail=element('div','origin-detail');detail.hidden=true;
   if(origin.mode==='api')detail.textContent='Model: '+(origin.model||'Not saved')+(origin.provider?' · '+origin.provider:'');
+  else if(origin.mode==='neural')detail.textContent='Neural match score: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Unavailable')+' · On-device model (not calibrated probability)';
   else if(origin.mode==='trained')detail.textContent='Estimated confidence: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Not available');
   else detail.textContent='Trigger: '+(origin.trigger||'Not recorded for this older message');
   button.addEventListener('click',()=>{
@@ -268,7 +270,7 @@ function refreshLearning(){
  if(activePanel==='inspector')renderInspector();
 }
 function languageKey(ctx){return ctx.mixed?ctx.languages.slice().sort().join('+'):ctx.primary;}
-function localAnswer(value,ctx){
+async function localAnswer(value,ctx){
  const remembered=answerMemory(value,ctx.primary);
  if(remembered)return {text:remembered,mode:'memory',confidence:null,trigger:'Memory lookup'};
  const thought=reason(value,ctx.primary);
@@ -276,6 +278,20 @@ function localAnswer(value,ctx){
  const matches=detectTopicMatches(value,ctx.primary),direct=matches.map(x=>x.id);
  const trigger=matches.length?matches.slice(0,4).map(m=>m.term).join(', '):'';
  const decision=inferDefault(value,ctx.primary);
+ const strongPrevious=!!decision.id&&decision.percent>=Number(threshold.value);
+ // Neural inference is only used when rule/memory/verified lexical routes are insufficient.
+ // Keep a high certainty margin: the network is a classifier, not a fact generator.
+ if(!strongPrevious&&direct.length<=1){
+  const guess=await neuralPredict(value,ctx.primary,900);
+  const gate=Math.max(.48,Number(threshold.value)/100-.24);
+  if(guess?.label&&guess.confidence>=gate&&guess.margin>=.16&&
+    (!direct.length||guess.label==='topic:'+direct[0])){
+   const reply=respondDefault({id:guess.label,percent:90,lang:ctx.primary},ctx.primary);
+   if(reply)return {text:reply,mode:'neural',confidence:Math.round(guess.confidence*100),
+    trigger:'On-device neural model',model:'OtaAI Neural',intent:guess.label};
+  }
+ }
+
  if(direct.length===1&&direct[0]>=100&&(decision.id!=='topic:'+direct[0]||decision.percent<Number(threshold.value))){
   const answer=respondDefault({id:'topic:'+direct[0],percent:80,lang:ctx.primary},ctx.primary);
   if(answer)return {text:answer,mode:'reference',confidence:null,trigger:trigger||'Technical reference'};
@@ -293,8 +309,8 @@ function localAnswer(value,ctx){
 function showResult(result,ctx){
  bubble('assistant',result.text,result);
  messages.push({role:'assistant',content:result.text});
- el('confidence-display').textContent=result.mode==='trained'?'Match: '+result.confidence+'% (estimated)':result.mode==='memory'?'Memory used':result.mode==='api'?'External API':result.mode==='reasoning'?'Verified reasoning':result.mode==='reference'?'Reference answer':'Low match';
- state(result.mode==='trained'?'🧠 Local model · '+result.confidence+'% approx.':result.mode==='memory'?'🗂️ Local memory':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Local reasoning':result.mode==='reference'?'📚 Technical reference':localText[ctx.primary].status);
+ el('confidence-display').textContent=result.mode==='neural'?'Neural score: '+result.confidence+'% (uncalibrated)':result.mode==='trained'?'Match: '+result.confidence+'% (estimated)':result.mode==='memory'?'Memory used':result.mode==='api'?'External API':result.mode==='reasoning'?'Verified reasoning':result.mode==='reference'?'Reference answer':'Low match';
+ state(result.mode==='neural'?'🧠 On-device neural model · '+result.confidence+'% match':result.mode==='trained'?'🧠 Local model · '+result.confidence+'% approx.':result.mode==='memory'?'🗂️ Local memory':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Local reasoning':result.mode==='reference'?'📚 Technical reference':localText[ctx.primary].status);
 }
 const safeText=(s)=>String(s||'').toLowerCase();
 function inspectorRow(container,title,detail,subtitle='',type='memory'){
@@ -394,6 +410,32 @@ el('show-key').addEventListener('click',()=>{
 });
 key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Key ready: external AI available':'No key: local model');
 
+function updateNeuralStatus(info){
+ const line=el('neural-status'),retrain=el('neural-retrain');
+ retrain.disabled=!info.enabled||!['ready','error'].includes(info.state);
+ const count=info.parameters.toLocaleString('en-US');
+ if(!info.enabled){line.textContent='Neural network disabled. Statistical model remains active.';return;}
+ if(info.state==='unsupported'){line.textContent='Neural network unavailable in this browser.';return;}
+ if(info.state==='error'){line.textContent='Neural training unavailable. Local fallback remains active.';return;}
+ if(info.state==='ready'){
+  const val=info.report?.validation;
+  const accuracy=val?.tested?' · Held-out accuracy: '+val.accuracy+'% ('+val.tested+' examples)':'';
+  line.textContent='🧠 '+count+' trainable parameters · '+(info.report?.source==='cache'?'restored':'trained')+accuracy;
+  return;
+ }
+ const progress=info.report?.progress,total=info.report?.total;
+ const pct=total?Math.min(100,Math.round(100*progress/total)):0;
+ line.textContent=info.state==='training'?'Training offline neural network… '+pct+'%':
+  'Loading '+count+'-parameter neural network…';
+}
+el('neural-enabled').checked=neuralEnabled();
+el('neural-enabled').addEventListener('change',e=>setNeuralEnabled(el('neural-enabled').checked));
+el('neural-retrain').addEventListener('click',()=>{
+ if(retrainNeural())el('neural-status').textContent='Retraining from synthetic examples…';
+});
+watchNeural(updateNeuralStatus);
+startNeural();
+
 void ready().then(()=>{renderActiveChat();refreshLearning();updateComposer();state('OtaAI ready');})
  .catch(()=>state('Could not load local memory'));
 
@@ -438,11 +480,11 @@ form.addEventListener('submit',async event=>{
  try{
   await ready();
   let result,source='local';
-  if(!key.value.trim())result=localAnswer(value,ctx);
+  if(!key.value.trim())result=await localAnswer(value,ctx);
   else{
    state('🌐 Consultando modelo externo...');
    try{result={text:await ask(messages,key.value.trim(),ctx),mode:'api',confidence:null,model:model.value.trim()||defaults[provider.value],provider:provider.value};source='api';}
-   catch{result=localAnswer(value,ctx);state('⚠️ API no disponible: respuesta local');}
+   catch{result=await localAnswer(value,ctx);state('⚠️ API no disponible: respuesta local');}
   }
   showResult(result,ctx);
   const topics=detectTopics(value,ctx.primary);
