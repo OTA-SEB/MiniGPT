@@ -4,7 +4,8 @@ import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './d
 import { reason } from './reasoning.js?v=1.0';
 import { PERSONA } from './personality.js?v=1.0';
 import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.0';
-import { renderMarkdown } from './markdown.js?v=1.0';
+import { renderMarkdown } from './markdown.js?v=1.2';
+import { memoryBlocks } from './ota-tags.js?v=1.2';
 import { setupComposer } from './composer.js?v=1.1';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.0';
 
@@ -107,7 +108,12 @@ function bubble(role,text,meta=null){
   });
   item.append(button,detail);
  }
- const body=element('div','bubble-text md-body');renderMarkdown(body,text);item.append(body);
+ const body=element('div','bubble-text md-body');
+ renderMarkdown(body,text,{onSave:role==='user'?null:(name,value)=>{
+  const ok=saveMemoryFact(name,value);if(ok){refreshLearning();state('Memory saved');}
+  return ok;
+ }});
+ item.append(body);
  chat.append(item);chat.scrollTop=chat.scrollHeight;
 }
 const workspace=document.querySelector('.workspace');
@@ -422,6 +428,7 @@ async function ask(history,secret,ctx){
 form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy)return;
  const value=composer.value().trim();if(!value)return;
+ for(const entry of memoryBlocks(value))saveMemoryFact(entry.name||entry.content.slice(0,50),entry.content);
  busy=true;el('send').disabled=true;composer.disable(true);composer.clear();updateComposer();
  el('typing-status').textContent='OtaAI is responding…';
  const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
