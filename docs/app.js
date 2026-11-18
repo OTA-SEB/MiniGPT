@@ -1,7 +1,7 @@
-import { fallback,detectTopics,topicCount } from './fallback.js?v=1.4';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights } from './learning.js?v=1.4';
+import { fallback,detectTopics,topicCount } from './fallback.js?v=2.0';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,clearChat,answerMemory,memoryContext,forgetMemory } from './learning.js?v=2.0';
 import { PERSONA } from './personality.js';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.4';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=2.0';
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
 const defaults={openrouter:'openrouter/free',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash'};
@@ -10,10 +10,19 @@ function bubble(role,text){const article=document.createElement('article');artic
 function state(s){status.textContent=s;}
 const refreshLearning=()=>{
  const n=stats();
- el('learning-info').textContent='🧠 '+n.turns+' turnos aprendidos · '+n.weights+' pesos locales · '+n.examples+' ejemplos. Los datos quedan en este navegador.';
+ el('learning-info').textContent='🧠 '+n.turns+' turnos · '+n.weights+' pesos · '+n.examples+' ejemplos · '+n.memory+' recuerdos · '+Math.floor(n.history/2)+' mensajes guardados. Todo queda en este navegador.';
 };
 el('footer').textContent=topicCount+' temas · ES / EN / PT / 日本語 · aprendizaje local';
-void ready().then(refreshLearning);
+void ready().then(()=>{
+ const history=getHistory();
+ if(history.length){
+   chat.replaceChildren();
+   for(const msg of history){bubble(msg.role,msg.content);messages.push({role:msg.role,content:msg.content});}
+   const last=[...history].reverse().find(m=>m.role==='user');
+   if(last)lastLanguage=detectLanguage(last.content,'es').primary;
+ }
+ refreshLearning();
+}).catch(()=>state('⚠️ Error al cargar memoria local'));
 el('download-weights').addEventListener('click',()=>{void exportWeights();});
 el('upload-weights').addEventListener('click',()=>el('weights-file').click());
 el('weights-file').addEventListener('change',async e=>{
@@ -25,6 +34,8 @@ el('weights-file').addEventListener('change',async e=>{
 function languageKey(ctx){return ctx.mixed?ctx.languages.slice().sort().join('+'):ctx.primary;}
 function localAnswer(value,ctx){
  const direct=detectTopics(value,ctx.primary);
+ const remembered=answerMemory(value,ctx.primary);
+ if(remembered)return remembered;
  const recalled=recall(value,languageKey(ctx));
  if(recalled)return recalled;
  const guess=direct.length?[]:predictTopics(value);
@@ -34,12 +45,18 @@ provider.addEventListener('change',()=>model.value=defaults[provider.value]);
 el('settings-toggle').addEventListener('click',()=>{const box=el('settings');box.hidden=!box.hidden;el('settings-toggle').setAttribute('aria-expanded',String(!box.hidden));});
 el('show-key').addEventListener('click',()=>{key.type=key.type==='password'?'text':'password';el('show-key').textContent=key.type==='password'?'Mostrar clave':'Ocultar clave';});
 key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Clave cargada: IA disponible':'Sin clave: modo automático');
-el('clear').addEventListener('click',()=>{if(busy)return;messages.length=0;chat.replaceChildren();bubble('assistant',localText[lastLanguage].reset);state(key.value.trim()?'🧠 Cerebro listo':'⚙️ Modo automático');});
+el('clear').addEventListener('click',()=>{if(busy)return;messages.length=0;clearChat();chat.replaceChildren();bubble('assistant',localText[lastLanguage].reset);state(key.value.trim()?'🧠 Cerebro listo':'⚙️ Modo automático');refreshLearning();});
+el('forget-memory').addEventListener('click',async()=>{
+ if(busy)return;
+ if(typeof window.confirm==='function'&&!window.confirm('¿Borrar todos los recuerdos, conversaciones y pesos aprendidos? Los pesos iniciales se conservarán.'))return;
+ await forgetMemory();messages.length=0;chat.replaceChildren();bubble('assistant','🧠 Memoria borrada. Conservé mis conocimientos iniciales.');refreshLearning();state('✅ Memoria reiniciada');
+});
 document.querySelectorAll('[data-try]').forEach(btn=>btn.addEventListener('click',()=>{if(busy)return;input.value=btn.dataset.try;form.requestSubmit();}));
 async function ask(history,secret,ctx){
  const languages=ctx.languages.map(l=>LANG_NAMES[l]).join(' + ');
  const langDirective=ctx.mixed?('El usuario mezcla '+languages+'. Respóndele naturalmente mezclando esos mismos idiomas según el contexto de sus temas. No traduzcas todo al español.'):('Responde en '+LANG_NAMES[ctx.primary]+'. Mantén ese idioma incluso si habla de títulos de juegos extranjeros.');
- const systemPrompt=PERSONA+'\n'+langDirective;
+ const memory=memoryContext();
+ const systemPrompt=PERSONA+'\n'+langDirective+(memory?'\nContexto recordado localmente (no inventes nada):\n'+memory:'');
  const c=new AbortController();const timeout=setTimeout(()=>c.abort(),30000);
  try{
   const p=provider.value;let url,body;
