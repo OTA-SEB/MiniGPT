@@ -16,6 +16,7 @@ rows.push(...extraTopics.map(t=>[
 const counts=new Map();
 export const topicCount=rows.length;
 export function trainingTopics(){return rows.map(row=>row[0].split(',').map(x=>x.trim()).filter(Boolean));}
+export function detectTopicMatches(input,previous="es"){return matchAliases(input,previous,rows);}
 export function detectTopics(input,previous="es"){
  return matchAliases(input,previous,rows).map(x=>x.id);
 }
