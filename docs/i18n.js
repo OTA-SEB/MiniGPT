@@ -88,6 +88,9 @@ export function detectLanguage(input,previous="es"){
  }
  // English is the default technical language, with explicit ES/PT/JA cues overriding it.
  if(extraTopics.some(t=>t.en===norm))score.en+=5;
+ if(extraTopics.some(t=>t.es!==t.en&&normalize(t.es)===norm))score.es+=6;
+ if(extraTopics.some(t=>t.pt!==t.en&&normalize(t.pt)===norm))score.pt+=6;
+ if(extraTopics.some(t=>t.ja!==t.en&&normalize(t.ja)===norm))score.ja+=6;
  const ranking=Object.entries(score).sort((a,b)=>b[1]-a[1]);
  const best=ranking[0], prior=LANG_NAMES[previous]?previous:"es";
  const primary=best[1]>0? (best[1]===ranking[1][1] && score[prior]===best[1]?prior:best[0]) : prior;
