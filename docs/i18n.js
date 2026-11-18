@@ -32,6 +32,34 @@ const explicit=[
  [/\b(?:fale|responda) (?:em )?ingles\b/i,"en"],[/\b(?:fale|responda) (?:em )?portugues\b/i,"pt"],
  [/日本語で/u,"ja"],[/英語で/u,"en"],[/スペイン語で/u,"es"],[/ポルトガル語で/u,"pt"]
 ];
+
+// Hepburn -> hiragana, sin redes. Solo las palabras del vocabulario japonés
+// activan detección de idioma, para evitar falsos positivos con texto latino.
+const J_WORDS=new Set(("konnichiwa konichiwa konbanwa ohayou ohayo arigatou arigato sayonara sayounara hai iie watashi anata kimi boku desu suki daisuki sugoi baka kawaii kakkoii yasashii zurui nande nani demo mou kudasai sumimasen gomen itadakimasu mizu ocha gohan sushi neko inu nihongo nihon tokyo sensei gakusei isha bengoshi hito tabemasu nomimasu hanashimasu wakarimasu genki daijoubu shizuka akuma sekai tomodachi samui atsui tanoshii omoshiroi yatta yoroshiku ganbatte hajimemashite oyasumi").split(" "));
+const SPECIAL={konnichiwa:"こんにちは",konichiwa:"こんにちは",konbanwa:"こんばんは",ohayou:"おはよう",ohayo:"おはよう",arigatou:"ありがとう",arigato:"ありがとう",sayonara:"さよなら",sayounara:"さようなら",nihongo:"にほんご",nihon:"にほん",tokyo:"とうきょう",gohan:"ごはん",mizu:"みず",neko:"ねこ",inu:"いぬ",sushi:"すし",ocha:"おちゃ"};
+const SYL={shi:"し",chi:"ち",tsu:"つ",fu:"ふ",ji:"じ",sha:"しゃ",shu:"しゅ",sho:"しょ",cha:"ちゃ",chu:"ちゅ",cho:"ちょ",kya:"きゃ",kyu:"きゅ",kyo:"きょ",nya:"にゃ",nyu:"にゅ",nyo:"にょ",rya:"りゃ",ryu:"りゅ",ryo:"りょ",ja:"じゃ",ju:"じゅ",jo:"じょ"};
+for(const [r,h] of Object.entries({a:"あ",i:"い",u:"う",e:"え",o:"お",k:"かきくけこ",s:"さしすせそ",t:"たちつてと",n:"なにぬねの",h:"はひふへほ",m:"まみむめも",r:"らりるれろ",g:"がぎぐげご",z:"ざじずぜぞ",d:"だぢづでど",b:"ばびぶべぼ",p:"ぱぴぷぺぽ"})){
+ if(h.length===5)for(let j=0;j<5;j++)SYL[r+"aiueo"[j]]=h[j];
+ else SYL[r]=h;
+}
+Object.assign(SYL,{ya:"や",yu:"ゆ",yo:"よ",wa:"わ",wo:"を",si:"し",ti:"ち",tu:"つ",hu:"ふ",zi:"じ",fa:"ふぁ",fi:"ふぃ",fe:"ふぇ",fo:"ふぉ"});
+export function romajiToKana(input){
+ const w=normalize(input).replace(/ /g,"");
+ if(SPECIAL[w])return SPECIAL[w];
+ if(!/^[a-z]+$/.test(w))return "";
+ let result="";
+ for(let i=0;i<w.length;){
+  if(w[i]==="n"&&(!w[i+1]||w[i+1]==="n"||!"aiueoy".includes(w[i+1]))){result+="ん";i++;continue;}
+  if(w[i]===w[i+1]&&/[bcdfghjklmpqrstvwxyz]/.test(w[i])&&w[i]!=="n"){result+="っ";i++;continue;}
+  let found=false;
+  for(const len of [3,2,1])if(SYL[w.slice(i,i+len)]){result+=SYL[w.slice(i,i+len)];i+=len;found=true;break;}
+  if(!found)return "";
+ }
+ return result;
+}
+export function isRomaji(w){return J_WORDS.has(normalize(w));}
+const kata=k=>k.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+96));
+
 export function detectLanguage(input,previous="es"){
  const norm=normalize(input);
  const words=norm.split(" ").filter(Boolean);
@@ -42,6 +70,7 @@ export function detectLanguage(input,previous="es"){
      if(common[lang].has(word)){score[lang]+=2;clues.push({lang,word});}
    }
    if(japanese.test(word)){score.ja+=4;clues.push({lang:"ja",word});}
+   else if(isRomaji(word)){score.ja+=5;clues.push({lang:"ja",word});}
  }
  const original=String(input||"").toLowerCase();
  for(const [pattern,lang] of explicit){
@@ -98,6 +127,12 @@ export const localText={
 };
 export function matchAliases(input,language,originalRows){
  const normalized=" "+normalize(input)+" ";
+ const romajiTerms=[];
+ let start=0;
+ for(const word of normalize(input).split(" ")){
+   if(isRomaji(word)){const hira=romajiToKana(word);if(hira)romajiTerms.push({hira,kata:kata(hira),at:start+1});}
+   start+=word.length+1;
+ }
  const found=[];
  for(let i=0;i<originalRows.length;i++){
    const terms=[];
@@ -111,6 +146,11 @@ export function matchAliases(input,language,originalRows){
      // Prefer language-tagged terms for direct translations, but neutral names
      // (e.g. Minecraft) use surrounding language.
      if(!best||at<best.at||(at===best.at && x.lang && !best.lang))best={id:i,at,lang:x.lang,term:x.term};
+   }
+   for(const rom of romajiTerms){
+     if(aliasForTopic(i,"ja").some(a=>a===rom.hira||a===rom.kata)){
+       if(!best||rom.at<best.at||(rom.at===best.at&&!best.lang))best={id:i,at:rom.at,lang:"ja",term:rom.hira};
+     }
    }
    if(best)found.push(best);
  }
@@ -133,13 +173,14 @@ export function matchAliases(input,language,originalRows){
  for(const word of words){
    if(!word){offset++;continue;}
    for(const lang of ["es","en","pt"])if(common[lang].has(word))cues.push({lang,at:offset});
-   if(japanese.test(word))cues.push({lang:"ja",at:offset});
+   if(japanese.test(word)||isRomaji(word))cues.push({lang:"ja",at:offset});
    offset+=word.length+1;
  }
  const explicitLanguage=(x)=>{
    if(!x.lang)return null;
    // Proper names common to several languages cannot identify a language by themselves.
    const normInput=" "+normalize(input)+" ";
+   if(romajiTerms.some(t=>t.at===x.at&&x.lang==="ja"))return "ja";
    const overlaps=["en","pt","ja"].filter(l=>aliasForTopic(x.id,l).some(t=>japanese.test(t)?normInput.includes(t):normInput.includes(" "+t+" ")));
    const isSpanishAlias=originalRows[x.id][0].split(",").some(t=>normalize(t)===x.term);
    // "gato" is Spanish and Portuguese; "chess" is distinctly English.
