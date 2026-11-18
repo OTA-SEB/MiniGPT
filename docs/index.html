@@ -7,7 +7,7 @@
 <meta name="description" content="OtaAI — a local-first AI workspace with conversations, Markdown, and optional Google Drive backup.">
 <title>OtaAI 1.0</title>
 <link rel="icon" href="./otaai-logo.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./style.css?v=1.2">
+<link rel="stylesheet" href="./style.css?v=1.3">
 <script async defer src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
@@ -45,6 +45,11 @@
       <select id="confidence-threshold"><option value="80" selected>80% · Flexible</option><option value="90">90% · Selective</option><option value="95">95% · Strict</option></select>
      </label>
      <p class="hint" id="learning-info">Loading model...</p>
+     <div class="neural-settings">
+      <label class="neural-toggle"><input type="checkbox" id="neural-enabled" checked> Neural classifier (offline)</label>
+      <p class="hint neural-status" id="neural-status" role="status">Starting neural engine...</p>
+      <button type="button" class="secondary" id="neural-retrain">Retrain neural model</button>
+     </div>
     </div>
     <div class="settings-card">
      <h3>External AI provider</h3>
@@ -156,6 +161,6 @@
   </form>
  </dialog>
 </main>
-<script type="module" src="./app.js?v=1.2"></script>
+<script type="module" src="./app.js?v=1.3"></script>
 </body>
 </html>
