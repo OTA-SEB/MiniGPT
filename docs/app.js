@@ -1,11 +1,11 @@
-import { fallback,detectTopics,topicCount } from './fallback.js?v=4.0';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=4.0';
-import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=4.0';
-import { reason } from './reasoning.js?v=4.0';
-import { PERSONA } from './personality.js?v=4.0';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=4.0';
-import { renderMarkdown,hasMarkdown } from './markdown.js?v=4.0';
-import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=4.0';
+import { fallback,detectTopics,detectTopicMatches,topicCount } from './fallback.js?v=1.0';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=1.0';
+import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=1.0';
+import { reason } from './reasoning.js?v=1.0';
+import { PERSONA } from './personality.js?v=1.0';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.0';
+import { renderMarkdown } from './markdown.js?v=1.0';
+import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.0';
 
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
@@ -19,7 +19,7 @@ threshold.addEventListener('change',()=>{
 });
 
 // Personalization only changes layout; model weights remain untouched.
-const prefs={theme:['crimson','wine','rose'],font:['small','normal','large'],density:['comfortable','compact']};
+const prefs={theme:['crimson','blue','gold'],appearance:['dark','light'],font:['small','normal','large'],density:['comfortable','compact']};
 for(const [name,options] of Object.entries(prefs)){
  const control=el(name+'-select');let value=options[0];
  try{const old=localStorage.getItem('otaai.'+name);if(options.includes(old))value=old;}catch{}
@@ -30,33 +30,14 @@ for(const [name,options] of Object.entries(prefs)){
   try{localStorage.setItem('otaai.'+name,control.value);}catch{}
  });
 }
-// Markdown source stays editable; preview and sent bubbles are safe DOM markup.
-const preview=el('markdown-preview'),previewButton=el('preview-toggle');
+// Markdown renders automatically after sending; only the source symbols are typed.
 function updateComposer(){
  input.style.height='auto';input.style.height=Math.min(185,Math.max(58,input.scrollHeight||58))+'px';
- if(!preview.hidden)renderMarkdown(preview,input.value||'Nothing to preview.');
 }
-previewButton.addEventListener('click',()=>{
- preview.hidden=!preview.hidden;
- previewButton.classList.toggle('active',!preview.hidden);
- previewButton.setAttribute('aria-pressed',String(!preview.hidden));
- updateComposer();
-});
 input.addEventListener('input',updateComposer);
 input.addEventListener('keydown',event=>{
  if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}
 });
-document.querySelectorAll('[data-format]').forEach(button=>button.addEventListener('click',()=>{
- const chosen=input.value.slice(input.selectionStart,input.selectionEnd);
- const tick=String.fromCharCode(96).repeat(3);
- const templates={bold:['**','**','bold text'],italic:['*','*','italic text'],
-  code:['\n'+tick+'js\n','\n'+tick+'\n','// code here'],list:['\n- ','','list item']};
- const parts=templates[button.dataset.format];if(!parts)return;
- const start=input.selectionStart,end=input.selectionEnd,body=chosen||parts[2];
- input.value=input.value.slice(0,start)+parts[0]+body+parts[1]+input.value.slice(end);
- input.focus();input.setSelectionRange(start+parts[0].length,start+parts[0].length+body.length);
- updateComposer();
-}));
 function setGoogleStatus(message){el('google-status').textContent=message;}
 function updateGoogleUI(){
  const connected=driveConnected();
@@ -110,12 +91,24 @@ function element(tag,cls='',content=''){
  if(content!==undefined)item.textContent=String(content);
  return item;
 }
-function bubble(role,text,meta=''){
+function bubble(role,text,meta=null){
  const item=element('article','bubble '+(role==='user'?'user':'bot'));
+ if(role!=='user'){
+  const origin=meta&&typeof meta==='object'?meta:{mode:'fallback',trigger:'Not recorded for this older message'};
+  const brain=['api','trained'].includes(origin.mode),button=element('button','origin-button'+(brain?' origin-brain':' origin-puzzle'),brain?'🧠':'🧩');
+  button.type='button';button.title=brain?'AI source details':'Automatic response details';
+  button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded','false');
+  const detail=element('div','origin-detail');detail.hidden=true;
+  if(origin.mode==='api')detail.textContent='Model: '+(origin.model||'Not saved')+(origin.provider?' · '+origin.provider:'');
+  else if(origin.mode==='trained')detail.textContent='Estimated confidence: '+(Number.isFinite(origin.confidence)?origin.confidence+'%':'Not available');
+  else detail.textContent='Trigger: '+(origin.trigger||'Not recorded for this older message');
+  button.addEventListener('click',()=>{
+   detail.hidden=!detail.hidden;button.setAttribute('aria-expanded',String(!detail.hidden));
+  });
+  item.append(button,detail);
+ }
  const body=element('div','bubble-text md-body');renderMarkdown(body,text);item.append(body);
- if(role!=='user'&&meta)item.append(element('div','response-meta',meta));
- chat.append(item);
- chat.scrollTop=chat.scrollHeight;
+ chat.append(item);chat.scrollTop=chat.scrollHeight;
 }
 const workspace=document.querySelector('.workspace');
 const mobile=()=>!!window.matchMedia?.('(max-width: 860px)').matches;
@@ -153,7 +146,7 @@ function makeConversationRow(c){
  const actions=element('div','conversation-actions');
  const edit=element('button','conversation-action','✎');
  edit.type='button';edit.title='Rename chat';edit.setAttribute('aria-label','Rename '+c.title);
- edit.addEventListener('click',()=>{if(busy)return;const next=window.prompt?.('Conversation name',c.title);if(next&&renameChat(c.id,next)){renderConversationList();el('chat-title').textContent=getActiveChat().title;}});
+ edit.addEventListener('click',()=>{if(busy)return;if(selectChat(c.id)){renderActiveChat();closeMobileSidebar();el('chat-title').focus();el('chat-title').select();}});
  const move=element('button','conversation-action','⇢');
  move.type='button';move.title='Move to folder';move.setAttribute('aria-label','Move '+c.title+' to folder');
  move.addEventListener('click',()=>{
@@ -211,13 +204,13 @@ function renderConversationList(){
 }
 function renderActiveChat(){
  const active=getActiveChat(),history=getHistory();messages.length=0;chat.replaceChildren();
- el('chat-title').textContent=active.title;
+ el('chat-title').value=active.title;
  if(history.length){
-  for(const m of history){bubble(m.role,m.content);messages.push({role:m.role,content:m.content});}
+  for(const m of history){bubble(m.role,m.content,m.meta);messages.push({role:m.role,content:m.content});}
   const last=[...history].reverse().find(m=>m.role==='user');
   lastLanguage=last?detectLanguage(last.content,'en').primary:'en';
- }else{lastLanguage='en';bubble('assistant','Welcome to OtaAI. What would you like to explore?');}
- input.placeholder='Message OtaAI... (Shift+Enter for a new line)';
+ }else{lastLanguage='en';}
+ input.placeholder='Message OtaAI...';
  document.documentElement.lang=lastLanguage;
  renderConversationList();if(activePanel==='inspector')renderInspector();
 }
@@ -225,6 +218,19 @@ function startNewConversation(){
  if(busy)return;createChat();setPanel(null);renderActiveChat();closeMobileSidebar();
  el('confidence-display').textContent='Match: —';state('New conversation');input.focus();
 }
+const titleInput=el('chat-title');
+function saveTitle(){
+ if(busy)return;
+ const current=getActiveChat(),next=titleInput.value.trim();
+ if(next&&next!==current.title)renameChat(current.id,next);
+ titleInput.value=getActiveChat().title;renderConversationList();
+}
+titleInput.addEventListener('blur',saveTitle);
+titleInput.addEventListener('keydown',event=>{
+ if(event.key==='Enter'){event.preventDefault();titleInput.blur();}
+ if(event.key==='Escape'){titleInput.value=getActiveChat().title;titleInput.blur();}
+});
+
 el('conversations-toggle').addEventListener('click',()=>{
  if(mobile())setSidebar(!workspace.classList.contains('sidebar-open'));
  else setSidebar(workspace.classList.contains('sidebar-collapsed'));
@@ -258,38 +264,28 @@ function refreshLearning(){
 function languageKey(ctx){return ctx.mixed?ctx.languages.slice().sort().join('+'):ctx.primary;}
 function localAnswer(value,ctx){
  const remembered=answerMemory(value,ctx.primary);
- if(remembered)return {text:remembered,mode:'memory',confidence:100};
+ if(remembered)return {text:remembered,mode:'memory',confidence:null,trigger:'Memory lookup'};
  const thought=reason(value,ctx.primary);
- if(thought)return {text:thought.text,mode:'reasoning',confidence:thought.confidence,kind:thought.kind};
- const direct=detectTopics(value,ctx.primary);
+ if(thought)return {text:thought.text,mode:'reasoning',confidence:null,trigger:'Rule: '+(thought.kind||'symbolic reasoning')};
+ const matches=detectTopicMatches(value,ctx.primary),direct=matches.map(x=>x.id);
+ const trigger=matches.length?matches.slice(0,4).map(m=>m.term).join(', '):'';
  const decision=inferDefault(value,ctx.primary);
- // A direct technical concept match takes precedence over an unrelated intent.
- // A dictionary explanation is NOT reported as an 80/90/95%-confident prediction.
  if(direct.length===1&&direct[0]>=100&&(decision.id!=='topic:'+direct[0]||decision.percent<Number(threshold.value))){
-   const answer=respondDefault({id:'topic:'+direct[0],percent:80,lang:ctx.primary},ctx.primary);
-   if(answer)return {text:answer,mode:'reference',confidence:null};
+  const answer=respondDefault({id:'topic:'+direct[0],percent:80,lang:ctx.primary},ctx.primary);
+  if(answer)return {text:answer,mode:'reference',confidence:null,trigger:trigger||'Technical reference'};
  }
- // Preserve combinations of two to five different topics.
- if(direct.length<=1 && decision.percent>=Number(threshold.value)){
-   const reply=respondDefault(decision,ctx.primary);
-   if(reply)return {text:reply,mode:'trained',confidence:decision.percent,intent:decision.id};
+ if(direct.length<=1&&decision.percent>=Number(threshold.value)){
+  const reply=respondDefault(decision,ctx.primary);
+  if(reply)return {text:reply,mode:'trained',confidence:decision.percent,intent:decision.id};
  }
  const recallText=recall(value,languageKey(ctx));
- if(recallText)return {text:recallText,mode:'recall',confidence:decision.percent};
+ if(recallText)return {text:recallText,mode:'recall',confidence:null,trigger:'Remembered example'};
  const guess=direct.length?[]:predictTopics(value);
- return {text:fallback(value,guess,ctx),mode:'fallback',confidence:decision.percent};
-}
-function resultMeta(result){
- if(result.mode==='reasoning')return '🧮 Reasoning engine · '+result.kind+' · deterministic';
- if(result.mode==='reference')return '📚 Curated technical reference · no confidence estimate';
- if(result.mode==='trained')return '🧠 Trained model · '+result.confidence+'% estimated match';
- if(result.mode==='memory')return '🗂️ Answer from saved memory';
- if(result.mode==='recall')return '💾 Recalled example';
- if(result.mode==='api')return '🌐 External model';
- return '🧩 Automatic topic fallback';
+ return {text:fallback(value,guess,ctx),mode:'fallback',confidence:null,
+  trigger:trigger||(guess.length?'Learned topic associations':'No matching keyword · default response')};
 }
 function showResult(result,ctx){
- bubble('assistant',result.text,resultMeta(result));
+ bubble('assistant',result.text,result);
  messages.push({role:'assistant',content:result.text});
  el('confidence-display').textContent=result.mode==='trained'?'Match: '+result.confidence+'% (estimated)':result.mode==='memory'?'Memory used':result.mode==='api'?'External API':result.mode==='reasoning'?'Verified reasoning':result.mode==='reference'?'Reference answer':'Low match';
  state(result.mode==='trained'?'🧠 Local model · '+result.confidence+'% approx.':result.mode==='memory'?'🗂️ Local memory':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Local reasoning':result.mode==='reference'?'📚 Technical reference':localText[ctx.primary].status);
@@ -391,9 +387,7 @@ el('show-key').addEventListener('click',()=>{
  el('show-key').textContent=key.type==='password'?'Show key':'Hide key';
 });
 key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Key ready: external AI available':'No key: local model');
-document.querySelectorAll('[data-try]').forEach(button=>button.addEventListener('click',()=>{
- if(busy)return;input.value=button.dataset.try;form.requestSubmit();
-}));
+
 void ready().then(()=>{renderActiveChat();refreshLearning();updateComposer();state('OtaAI ready');})
  .catch(()=>state('Could not load local memory'));
 
@@ -431,7 +425,7 @@ form.addEventListener('submit',async event=>{
  busy=true;el('send').disabled=true;input.disabled=true;input.value='';updateComposer();
  el('typing-status').textContent='OtaAI is responding…';
  const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
- input.placeholder='Message OtaAI... (Shift+Enter for a new line)';
+ input.placeholder='Message OtaAI...';
  document.documentElement.lang=lastLanguage;
  bubble('user',value);messages.push({role:'user',content:value});
  try{
@@ -440,14 +434,14 @@ form.addEventListener('submit',async event=>{
   if(!key.value.trim())result=localAnswer(value,ctx);
   else{
    state('🌐 Consultando modelo externo...');
-   try{result={text:await ask(messages,key.value.trim(),ctx),mode:'api',confidence:null};source='api';}
+   try{result={text:await ask(messages,key.value.trim(),ctx),mode:'api',confidence:null,model:model.value.trim()||defaults[provider.value],provider:provider.value};source='api';}
    catch{result=localAnswer(value,ctx);state('⚠️ API no disponible: respuesta local');}
   }
   showResult(result,ctx);
   const topics=detectTopics(value,ctx.primary);
-  learn(value,result.text,topics.length?topics:predictTopics(value),source,languageKey(ctx));
+  learn(value,result.text,topics.length?topics:predictTopics(value),source,languageKey(ctx),result);
   if(driveConnected())el('cloud-mini-status').textContent='● Unsaved local changes';
-  el('chat-title').textContent=getActiveChat().title;
+  el('chat-title').value=getActiveChat().title;
   refreshLearning();
  }catch(error){
   console.error(error);
