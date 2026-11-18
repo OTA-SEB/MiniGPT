@@ -87,6 +87,12 @@ for(let index=0;index<topics.length;index++){
    }
  }
 }
+// Las palabras japonesas en romaji se entrenan también como variantes directas.
+const ROMAJI_TOPICS={6:['neko'],7:['inu'],8:['niwatori'],27:['nihongo'],28:['nihon','tokyo'],62:['sushi'],64:['gohan'],65:['mizu','ocha'],77:['arigatou','arigato'],78:['sayonara','sayounara']};
+for(const [id,aliases] of Object.entries(ROMAJI_TOPICS)){
+ for(const word of aliases)for(const p of ['', 'watashi wa ', 'suki ', 'kore wa '])
+  ingest(p+word,'ja','topic:'+id,'topic');
+}
 export const trainingStats={examples,intents:Object.keys(DIALOG.es).length*4,topics:topics.length,weights:[...vocab.values()].reduce((sum,v)=>sum+v.size,0)};
 function similarity(a,b){
  let dot=0,aa=0,bb=0;
