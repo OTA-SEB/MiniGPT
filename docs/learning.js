@@ -53,6 +53,7 @@ async function load(){
  }catch{}
  if(!valid(parsed))try{parsed=JSON.parse(localStorage.getItem(BACKUP)||'null');}catch{}
  brain=valid(parsed)?migrate(parsed):blank();
+ if(valid(parsed)&&parsed.version===1)for(const example of brain.examples)if(typeof example.q==='string')rememberFact(example.q);
 }
 async function save(){
  const json=JSON.stringify(brain);
@@ -80,16 +81,30 @@ function rememberFact(input){
  if((m=/^me gust(?:a|an)\s+(.{2,100})[.!]?$/i.exec(raw)))set('likes',m[1].replace(/[.!]$/,''));
  if((m=/^mi (?:juego|animal|anime|color) favorito es\s+(.{2,100})[.!]?$/i.exec(raw)))set('favorite',m[1].replace(/[.!]$/,''));
  if((m=/^([\p{L}\p{N}_-]{2,45})\s+(?:significa|means)\s+(.{2,70})[.!]?$/iu.exec(raw))){
-    let translation=m[2].replace(/\s+en (?:japones|ingl[eé]s|portugu[eé]s|espa[nñ]ol)\.?$/i,'').replace(/[.!]$/,'').trim();
+    let translation=m[2].replace(/\s+en (?:japon[eé]s|ingl[eé]s|portugu[eé]s|espa[nñ]ol)\.?$/i,'').replace(/[.!]$/,'').trim();
     set('translation:'+clean(m[1]),translation);
  }
 }
+// Minidiccionario semántico inicial, distinto de los recuerdos personales.
+const JP_GLOSS={
+ konnichiwa:"hola",konichiwa:"hola",ohayou:"buenos días",ohayo:"buenos días",
+ konbanwa:"buenas noches (saludo)",arigatou:"gracias",arigato:"gracias",
+ sayonara:"adiós",sayounara:"adiós",neko:"gato",inu:"perro",
+ mizu:"agua",ocha:"té",gohan:"comida o arroz cocido",sushi:"sushi",
+ nihongo:"idioma japonés",nihon:"Japón",tokyo:"Tokio",
+ watashi:"yo",anata:"tú",kimi:"tú (informal)",boku:"yo (informal)",
+ desu:"forma cortés de ser o estar",suki:"gustar",daisuki:"gustar mucho",
+ baka:"tonto",kawaii:"adorable",kakkoii:"genial",sugoi:"increíble",
+ nande:"¿por qué?",nani:"¿qué?",demo:"pero",mou:"ya",
+ samui:"frío",atsui:"calor",sensei:"profesor",
+ arimasu:"haber o existir",hai:"sí",iie:"no",sumimasen:"disculpa"
+};
 export function answerMemory(question,lang='es'){
  const q=clean(question),fs=brain.facts||{};
  if(/^(?:que|q|what) (?:significa|means) /.test(q)||/^(?:what does|que quiere decir) /.test(q)){
   const candidate=q.replace(/^(?:que significa|q significa|what means|what does|que quiere decir)\s+/,'').replace(/\s+mean$/,'').replace(/[?¿]/g,'').trim();
-  const entry=fs['translation:'+candidate];
-  if(entry)return lang==='ja'?candidate+' は「'+entry.value+'」という意味だよ。':lang==='en'?candidate+' means '+entry.value+'.':candidate+' significa '+entry.value+'.';
+  const entry=fs['translation:'+candidate],meaning=entry?.value||JP_GLOSS[candidate];
+  if(meaning)return lang==='ja'?candidate+' は「'+meaning+'」という意味だよ。':lang==='en'?candidate+' means '+meaning+'.':candidate+' significa '+meaning+'.';
  }
  if(/(?:como me llamo|cual es mi nombre|what is my name)/.test(q)&&fs.name)return lang==='en'?'You told me your name is '+fs.name.value+'.':'Me dijiste que te llamas '+fs.name.value+'.';
  if(/(?:que me gusta|que cosas me gustan|what do i like)/.test(q)&&fs.likes)return lang==='en'?'You told me you like '+fs.likes.value+'.':'Me dijiste que te gusta '+fs.likes.value+'.';
@@ -103,7 +118,6 @@ export function answerMemory(question,lang='es'){
 export function getHistory(){return brain.history.filter(x=>x&&['user','assistant'].includes(x.role)&&typeof x.content==='string').map(x=>({role:x.role,content:x.content,lang:x.lang||'es'}));}
 export function clearChat(){brain.history=[];queueSave();}
 export async function forgetMemory(){
- const keepTurns=brain.turns;
  brain=blank();seed();brain.turns=0;await save();return stats();
 }
 export function memoryContext(){
@@ -192,5 +206,6 @@ export async function importWeights(file){
  for(const x of old.examples)if(x&&typeof x.q==='string'&&typeof x.a==='string'&&!brain.examples.some(y=>y.q===x.q&&y.lang===x.lang))brain.examples.push(x);
  if(old.history.length)brain.history=old.history.slice(-MAX_HISTORY);
  Object.assign(brain.facts,old.facts);
+ if(parsed.version===1)for(const example of old.examples)if(typeof example.q==='string')rememberFact(example.q);
  seed();cleanExamples();await save();return stats();
 }
