@@ -1,7 +1,8 @@
-// MiniGPT 2.1 - mini modelo entrenado sin conexión en corpus sintético curado.
+// MiniGPT 3.0 - mini modelo entrenado sin conexión en corpus sintético curado.
 // Clasificador de similitud semántica superficial: NO es un LLM ni probabilidad calibrada.
-import { normalize,aliasForTopic } from './i18n.js?v=2.1';
-import { trainingTopics } from './fallback.js?v=2.1';
+import { normalize,aliasForTopic } from './i18n.js?v=3.0';
+import { extraTopics } from './extra-topics.js?v=3.0';
+import { trainingTopics } from './fallback.js?v=3.0';
 const DIALOG={
  es:{
   greeting:{q:['hola','holaa','holaaa','holi','buenas','hey','hola bro','ey bro','buenos dias','buenas tardes','buenas noches','que hubo','saludos','que mas','hola minigpt'],a:['¡Holaaa! 🤖 ¿Qué tal va tu día?','¡Buenas, bro! ¿Qué cuentas? 😎','¡Ey! Aquí ando, listo para conversar. XDDD','¡Hola! ¿Qué aventura toca hoy?']},
@@ -77,13 +78,27 @@ for(const [lang,intents] of Object.entries(DIALOG))for(const [id,rule] of Object
    if(!rule.p)for(const suffix of ['',' bro',' xd'])ingest(q+suffix,lang,id);
  }
 }
+// English receives denser supervised question patterns; other languages retain core coverage.
+const ENGLISH_CODE_PROMPTS=[
+ 'what is ', 'what does ', 'explain ', 'define ', 'describe ',
+ 'tell me about ', 'how does ', 'why use ', 'when to use ',
+ 'what is the purpose of ', 'what are the basics of ',
+ 'can you explain ', 'teach me about ', 'i want to learn ',
+ 'help me understand ', 'what does the term ', 'what is the meaning of ',
+ 'why is ', 'how can i understand ', 'i am studying '
+];
+const CODE_SUFFIXES=['',' in programming',' in computer science',' in software engineering'];
 const topics=trainingTopics();
 for(let index=0;index<topics.length;index++){
- for(const lang of ['es','en','pt','ja']){
+ for(const lang of ['en','es','pt','ja']){
    const aliases=lang==='es'?topics[index]:aliasForTopic(index,lang);
    for(const a of aliases.filter(Boolean)){
      ingest(a,lang,'topic:'+index,'topic');
      for(const p of OPENERS[lang])if(p)ingest(lang==='ja'&&p==='教えて '?p+a:a&&lang==='ja'?a+p:p+a,lang,'topic:'+index,'topic');
+     if(lang==='en'&&index>=100){
+       for(const p of ENGLISH_CODE_PROMPTS)for(const suffix of CODE_SUFFIXES)ingest(p+a+suffix,lang,'topic:'+index,'topic');
+       for(const phrase of ['a quick overview of ','the basics of ','a short explanation of ','understanding ','concept of '])ingest(phrase+a,lang,'topic:'+index,'topic');
+     }
    }
  }
 }
@@ -93,7 +108,7 @@ for(const [id,aliases] of Object.entries(ROMAJI_TOPICS)){
  for(const word of aliases)for(const p of ['', 'watashi wa ', 'suki ', 'kore wa '])
   ingest(p+word,'ja','topic:'+id,'topic');
 }
-export const trainingStats={examples,intents:Object.keys(DIALOG.es).length*4,topics:topics.length,weights:[...vocab.values()].reduce((sum,v)=>sum+v.size,0)};
+export const trainingStats={examples,intents:Object.keys(DIALOG.es).length*4,topics:topics.length,weights:[...vocab.values()].reduce((sum,v)=>sum+v.size,0),languages:Object.fromEntries([...byLang].map(([k,v])=>[k,v.length]))};
 function similarity(a,b){
  let dot=0,aa=0,bb=0;
  for(const [f,w] of a){aa+=w*w;if(b.has(f))dot+=w*b.get(f);}
@@ -146,6 +161,13 @@ export function respondDefault(p,lang=p?.lang||'es'){
   const index=Number(p.id.slice(6)),names=trainingTopics()[index];
   if(!names)return null;
   const name=outlang==='es'?names[0]:(aliasForTopic(index,outlang)[0]||names[0]);
+  if(index>=100){
+    const definition=extraTopics[index-100]?.info;
+    if(!definition)return null;
+    const translated={es:'Concepto técnico: ',pt:'Conceito técnico: ',ja:'技術の説明: ',en:''}[outlang]||'';
+    // Definitions are original curated English reference data, not generated code.
+    return translated+definition;
+  }
   const answers={
    es:[`¡${name}! 😎 Podemos hablar de eso. ¿Qué te interesa?`,`Bro, ${name} tiene tema para rato. ¿Qué quieres explorar?`,`¡Vamos con ${name}! ¿Qué parte te llama la atención?`],
    en:[`Oh, ${name}! What do you want to explore? 🤖`,`We can talk about ${name}, bro! What's on your mind?`],
