@@ -1,13 +1,13 @@
-import { fallback,detectTopics,detectTopicMatches,topicCount } from './fallback.js?v=1.0';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=1.0';
-import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=1.0';
-import { reason } from './reasoning.js?v=1.0';
-import { PERSONA } from './personality.js?v=1.0';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.0';
+import { fallback,detectTopics,detectTopicMatches,topicCount } from './fallback.js?v=1.2';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,getFolders,createFolder,renameFolder,deleteFolder,moveChatToFolder,exportCloudSnapshot,restoreCloudSnapshot,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=1.2';
+import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=1.2';
+import { reason } from './reasoning.js?v=1.2';
+import { PERSONA } from './personality.js?v=1.2';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.2';
 import { renderMarkdown } from './markdown.js?v=1.2';
 import { memoryBlocks } from './ota-tags.js?v=1.2';
-import { setupComposer } from './composer.js?v=1.1';
-import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.0';
+import { setupComposer } from './composer.js?v=1.2';
+import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.2';
 
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
