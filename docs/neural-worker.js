@@ -58,7 +58,7 @@ async function initialize(retrain=false){
    }
   }
   status('preparing');
-  const pool=neuralTrainingExamples(8);
+  const pool=neuralTrainingExamples(6);
   const train=[],heldout=[];
   // Each labeled language group gets one held-out example where possible.
   const count=new Map();
@@ -66,17 +66,17 @@ async function initialize(retrain=false){
    const label=labelIndex(e.label);if(label<0)continue;
    const key=e.lang+':'+label,n=count.get(key)||0;count.set(key,n+1);
    const row={text:e.text,lang:e.lang,label};
-   (n===7?heldout:train).push(row);
+   (n===5?heldout:train).push(row);
   }
   const memory=typeof navigator!=='undefined'?navigator.deviceMemory:undefined;
   const smallDevice=typeof memory==='number'&&memory<=3;
-  const epochs=smallDevice?2:3;
+  const epochs=smallDevice?4:6;
   trainingEpochs=epochs;
   let iteration=0;
   const total=epochs*train.length;status('training',{total,progress:0,samples:train.length});
   for(let epoch=0;epoch<epochs;epoch++){
    shuffle(train,0x974211+epoch*7919);
-   const rate=epoch===0?.18:epoch===1?.13:.095;
+   const rate=epoch<2?.2:epoch<4?.15:.11;
    for(let at=0;at<train.length;at++){
     const row=train[at];
     net.trainOne(row.text,row.lang,row.label,rate,epoch);
