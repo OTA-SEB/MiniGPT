@@ -1,6 +1,6 @@
 # MiniGPT 🤖
 
-MiniGPT es una web de chat con un cerebro opcional de IA y **100 temas de respuesta automática**, cuatro variantes por tema y combinaciones de 2 a 5 temas. Funciona sin servidor.
+MiniGPT es una web de chat con un cerebro opcional de IA y **100 temas de respuesta automática**, cuatro variantes en español por tema y combinaciones de 2 a 5 temas. Incluye respuestas temáticas en inglés, portugués y japonés. Funciona sin servidor.
 
 ## Abrir desde el móvil
 El sitio para GitHub Pages está en la carpeta [docs/](docs/). Para publicarlo, entra a **Settings → Pages → Build and deployment → Deploy from a branch → main → /docs → Save**. Una vez publicado, estará en:
@@ -19,6 +19,13 @@ OpenRouter utiliza por defecto el modelo `openrouter/free`, sujeto a los límite
 ### Seguridad
 La clave **no se guarda en GitHub ni en localStorage** y solo vive durante la sesión actual. La web la envía directamente al proveedor elegido. **Una API key usada en un navegador puede quedar expuesta**, incluso si la ocultas visualmente; conviene usar una clave con límites de gasto y no compartirla. No pegues ninguna clave en el código del repositorio.
 
+## Idiomas automáticos 🌐
+MiniGPT 1.3 detecta el idioma de la conversación entre **español, inglés, portugués y japonés**, sin menú ni preguntas. Puede detectar varios temas incluso si aparecen en idiomas diferentes, como `Hola, chess と 猫`; combina respuestas por idioma y tema. En el modo automático, cada tema tiene cuatro respuestas originales en español y mensajes localizados con variaciones en los otros tres idiomas. El detector es ligero y puede equivocarse con textos muy cortos o ambiguos.
+
+En el modo con API, MiniGPT pide al proveedor que responda en el idioma predominante o conserve una mezcla natural cuando detecta varios. Ese comportamiento depende también del modelo externo.
+
+El aprendizaje local guarda los ejemplos con su idioma para no recuperar por accidente una respuesta en otro idioma. **No traduce cualquier texto ni aprende gramática general por sí solo**: el modo sin API usa un diccionario temático y un pequeño modelo de asociaciones.
+
 ## Aprendizaje local
 El mini modelo estadístico aprende automáticamente asociaciones y respuestas de cada conversación. Guarda sus pesos en **minigpt-pesos.json** dentro del almacenamiento privado del navegador (OPFS, si está disponible), con respaldo en almacenamiento local. Puedes **exportar** e **importar** ese archivo desde 🧠 Cerebro. Se conserva entre sesiones en el mismo navegador, pero puede perderse si borras los datos del sitio; exporta una copia si quieres conservarlo.
 
@@ -29,6 +36,7 @@ El mini modelo estadístico aprende automáticamente asociaciones y respuestas d
 - `docs/app.js`: conexión a modelo real y modo de emergencia.
 - `docs/fallback.js`: cien conversaciones temáticas, cuatro respuestas por tema y combinaciones.
 - `docs/learning.js`: mini modelo autoentrenable, pesos persistentes y exportación/importación.
+- `docs/i18n.js`: detección de idiomas, diccionario multilingüe y mezclas entre idiomas y temas.
 - `docs/personality.js`: personalidad y referencias creativas (el chiste de los panes, "ax", anime, videojuegos y Broken Threads).
 - `docs/style.css`: estilos.
 
