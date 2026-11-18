@@ -50,14 +50,45 @@ Google backup files contain private user data under the selected Google account.
 
 ## Model capabilities
 
-OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full neural text generator. It retains 200 topics, English-focused synthetic training, smaller ES/PT/JA support, romaji, and bounded arithmetic/logic reasoning. Confidence scores are heuristic match scores, not guaranteed probabilities. General code generation is planned for a later version.
+OtaAI is a lightweight statistical intent-matching model, **not** Qwen or a full neural text generator. It now covers **400 topics**, including **200 new topics across 20 diverse areas** (science, history, philosophy, arts, sports, society, language, design and more). Each new topic has concise educational descriptions in **English, Spanish, Portuguese and Japanese**.
+
+- **34,904 synthetic training examples**, relatively balanced between EN (8,713), ES (8,955), PT (8,690), and JA (8,546).
+- **249,790 sparse learned-style feature associations** in the static matcher (ES 70,712; EN 63,584; PT 67,241; JA 48,253), including **121,134 programming-topic associations**. These are **NOT neural-network parameters** or a pretrained language model.
+- **17 language-specific programming templates** for hello-world, addition and loops, plus limited static code inspection: Python, C++, Rust, Kotlin, C#, JavaScript, TypeScript, Java, Go, Swift, Ruby, Lua, PHP, Bash, SQL, HTML and CSS.
+- Rule-based reasoning includes arithmetic, sequences, comparisons, basic logical deduction, percentages, linear equations, primality tests and the Euclidean GCD algorithm. This is transparent symbolic calculation, **not general neural reasoning**.
+- The original user-defined grammar marker **AX** is recognized as emphasizing choices following it in a list.
+
+Confidence percentages remain heuristic similarity scores and must never be treated as calibrated probabilities. Unsupported requests may still receive a generic fallback.
+
+## OtaAI tag language (not XML/HTML)
+
+OtaAI recognizes a small **custom tag syntax**, parsed as text rather than HTML. Rendering never inserts raw user HTML into the page:
+
+- `<code="python">print("Hola")</code>` — colored code card. Also accepts `<code=rust>...</code>` and supported language names.
+- `<code=javascript>console.log(2+2)</code>` — same card with a **Run JS** button.
+- `<time d=60>` — counter increases from 60 seconds, tied to the original message time.
+- `<time a=60>` — counter counts down from 60 seconds toward zero.
+- `<time>` — the current local clock, updated every second.
+- `<stime>` — the current Unix timestamp in seconds, updated every second.
+- `<save>Favorite editor: VS Code</save>` — a memory block; user-authored messages save on sending. AI-authored memory blocks require a separate user click before they are stored.
+- `<save name="Editor">VS Code</save>` — specify a memory label.
+- `<color=red>red text</color>` or `<color=#eb5074>colored text</color>` — safely allowlisted text colors.
+- `<mark>important</mark>` — emphasized text.
+- `<spoiler>hidden text</spoiler>` — click to reveal.
+- `<kbd>Ctrl+Enter</kbd>` — keyboard shortcut styling.
+- `<notice>Heads up</notice>` — highlighted notice block.
+
+**Execution limitation:** only JavaScript code can currently run locally, and only when the user clicks its Run button. That code executes in a time-limited Web Worker inside a sandboxed opaque-origin iframe with a restrictive Content Security Policy. Python, C++, Rust, Kotlin, C# and the other languages are supported for syntax display and curated examples, **not in-browser compilation/execution**. Running code is never automatic. Do not rely on the experimental runner for untrusted high-risk programs.
 
 ## Files
 
 - docs/index.html: branded workspace, sidebar and Google Sign-In script.
 - docs/style.css: full responsive 6-mode appearance and Markdown styling.
 - docs/app.js: chat, folders, automatic Markdown display, source indicators, inline chat titles, personalization, optional API, Google backup UI.
-- docs/markdown.js: safe Markdown DOM renderer for messages.
+- docs/markdown.js: safe Markdown DOM renderer and OTA tag integration.
+- docs/ota-tags.js: custom tags, time counters, memory labels, colors, syntax highlighting and isolated JS runner.
+- docs/code-knowledge.js: curated programming-language templates and static code inspection.
+- docs/world-topics.js, docs/world-facts-local.js: 200 new topics with EN/ES/PT/JA descriptions.
 - docs/composer.js: live contenteditable Markdown formatting and keyboard handling.
 - docs/otaai-logo.svg: compact embedded rendition of the supplied official OtaAI star artwork.
 - docs/google-drive.js: Google OAuth token flow and appDataFolder REST backup.
