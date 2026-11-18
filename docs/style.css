@@ -419,3 +419,10 @@ select,input,textarea{accent-color:var(--accent)}
 .ota-spoiler>span[hidden]{display:none}
 .ota-kbd{font:600 .88em ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid var(--line2);border-bottom-width:3px;border-radius:5px;background:var(--surface3);color:var(--text);padding:2px 5px}
 .ota-notice{border-left:3px solid var(--accent-hi);border-radius:0 8px 8px 0;background:var(--surface2);color:var(--text);padding:9px 13px;margin:9px 0}
+
+/* OtaAI's optional on-device neural network controls */
+.neural-settings{margin:13px 0 2px;padding:12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+.neural-settings .neural-toggle{display:flex!important;align-items:center;flex-direction:row!important;gap:9px;margin:0 0 9px!important;color:var(--text);font-size:12px}
+.neural-toggle input[type="checkbox"]{width:17px!important;height:17px!important;min-width:17px!important;margin:0!important;accent-color:var(--accent);cursor:pointer}
+.neural-status{padding:2px 0;line-height:1.55;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+#neural-retrain{width:100%;margin-top:6px;font-size:11px}
