@@ -33,7 +33,7 @@ function sourceOf(node){
 }
 export function editorMarkdown(editor){
  return Array.from(editor.childNodes).map(sourceOf).join('')
-  .replace(/\u200b/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  .replace(/\u200b/g,'').trim();
 }
 function caretInside(editor){
  const sel=window.getSelection?.();
