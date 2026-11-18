@@ -113,6 +113,14 @@ export function matchAliases(input,language,originalRows){
    if(best)found.push(best);
  }
  found.sort((a,b)=>a.at-b.at||a.id-b.id);
+ // Prefer specific game/character titles over overlapping generic words.
+ const whole=normalize(input);
+ if(whole.includes("rain world")||whole.includes("レインワールド")){
+   if(found.some(x=>x.id===79)){const n=found.findIndex(x=>x.id===59);if(n>=0)found.splice(n,1);}
+ }
+ if(whole.includes("looks to the moon")||whole.includes("ルックス トゥ ザ ムーン")){
+   if(found.some(x=>x.id===82)){const n=found.findIndex(x=>x.id===57);if(n>=0)found.splice(n,1);}
+ }
  // "ax" between other topics is grammatical glue, not a topic.
  if(found.length>1){const at=found.findIndex(x=>x.id===73);if(at>=0)found.splice(at,1);}
  const context=detectLanguage(input,language);
