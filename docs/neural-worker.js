@@ -69,7 +69,7 @@ async function initialize(retrain=false){
    (n===5?heldout:train).push(row);
   }
   const memory=typeof navigator!=='undefined'?navigator.deviceMemory:undefined;
-  const smallDevice=typeof memory==='number'&&memory<=3;
+  const smallDevice=(typeof memory==='number'&&memory<=3)||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent||'');
   const epochs=smallDevice?4:6;
   trainingEpochs=epochs;
   let iteration=0;
