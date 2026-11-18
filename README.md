@@ -59,9 +59,9 @@ Google backup files contain private user data under the selected Google account.
 
 The browser models are hosted by Hugging Face, loaded with Transformers.js 4.3.2 from jsDelivr and cached when the browser supports caching. They are **not** invented/trained from scratch by this repository:
 
-- **Auto (default):** Qwen2.5-0.5B-Instruct quantized in 4-bit on compatible **WebGPU** devices; on low-memory or unsupported devices, the smaller CPU model is selected.
-- **Qwen:** choose the stronger Qwen2.5 0.5B model, with automatic fallback to the lightweight model if it cannot be loaded.
-- **Smol:** SmolLM2-135M-Instruct quantized in 4-bit, run through browser **WebAssembly**. It is lighter but has substantially weaker chat and multilingual ability.
+- **Auto (default):** Qwen2.5-0.5B-Instruct quantized in 4-bit on compatible **WebGPU** devices; on CPU-only devices with enough memory, Qwen also runs in quantized WASM mode (slower); on low-memory devices, the smaller CPU model is selected.
+- **Qwen:** choose the stronger Qwen2.5 0.5B model, with a CPU option when WebGPU is unavailable and automatic fallback to the lightweight model if neither works.
+- **Smol:** SmolLM2-135M-Instruct quantized in 4-bit, run through browser **WebAssembly**. It is lighter but has substantially weaker chat and multilingual ability; automatic selection favors multilingual Qwen on capable CPU-only devices for Spanish, Portuguese, and Japanese.
 
 The **first sent message** initiates the large model download, so the interface displays download progress and a **Stop** button that can terminate the worker. On-device inference may be slow, fail for lack of memory, or be unavailable in older browsers. The app does not claim successful local generation if the model fails.
 
