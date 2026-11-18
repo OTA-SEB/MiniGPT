@@ -7,6 +7,7 @@ import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=1.2';
 import { renderMarkdown } from './markdown.js?v=1.2';
 import { memoryBlocks } from './ota-tags.js?v=1.2';
 import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.3';
+import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.3';
 import { setupComposer } from './composer.js?v=1.2';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.2';
 
@@ -275,6 +276,9 @@ async function localAnswer(value,ctx){
  if(remembered)return {text:remembered,mode:'memory',confidence:null,trigger:'Memory lookup'};
  const thought=reason(value,ctx.primary);
  if(thought)return {text:thought.text,mode:'reasoning',confidence:null,trigger:'Rule: '+(thought.kind||'symbolic reasoning')};
+ const composed=composeTopicAnswer(value,ctx.primary);
+ if(composed)return {text:composed.text,mode:'reasoning',confidence:null,trigger:composed.trigger};
+
  const matches=detectTopicMatches(value,ctx.primary),direct=matches.map(x=>x.id);
  const trigger=matches.length?matches.slice(0,4).map(m=>m.term).join(', '):'';
  const decision=inferDefault(value,ctx.primary);
