@@ -17,6 +17,93 @@ threshold.addEventListener('change',()=>{
  try{localStorage.setItem('minigpt.threshold',threshold.value);}catch{}
  el('confidence-display').textContent='Threshold: '+threshold.value+' %';
 });
+
+// Personalization only changes layout; model weights remain untouched.
+const prefs={theme:['crimson','wine','rose'],font:['small','normal','large'],density:['comfortable','compact']};
+for(const [name,options] of Object.entries(prefs)){
+ const control=el(name+'-select');let value=options[0];
+ try{const old=localStorage.getItem('otaai.'+name);if(options.includes(old))value=old;}catch{}
+ control.value=value;document.documentElement.dataset[name]=value;
+ control.addEventListener('change',()=>{
+  if(!options.includes(control.value))return;
+  document.documentElement.dataset[name]=control.value;
+  try{localStorage.setItem('otaai.'+name,control.value);}catch{}
+ });
+}
+// Markdown source stays editable; preview and sent bubbles are safe DOM markup.
+const preview=el('markdown-preview'),previewButton=el('preview-toggle');
+function updateComposer(){
+ input.style.height='auto';input.style.height=Math.min(185,Math.max(58,input.scrollHeight||58))+'px';
+ if(!preview.hidden)renderMarkdown(preview,input.value||'Nothing to preview.');
+}
+previewButton.addEventListener('click',()=>{
+ preview.hidden=!preview.hidden;
+ previewButton.classList.toggle('active',!preview.hidden);
+ previewButton.setAttribute('aria-pressed',String(!preview.hidden));
+ updateComposer();
+});
+input.addEventListener('input',updateComposer);
+input.addEventListener('keydown',event=>{
+ if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}
+});
+document.querySelectorAll('[data-format]').forEach(button=>button.addEventListener('click',()=>{
+ const chosen=input.value.slice(input.selectionStart,input.selectionEnd);
+ const tick=String.fromCharCode(96).repeat(3);
+ const templates={bold:['**','**','bold text'],italic:['*','*','italic text'],
+  code:['\n'+tick+'js\n','\n'+tick+'\n','// code here'],list:['\n- ','','list item']};
+ const parts=templates[button.dataset.format];if(!parts)return;
+ const start=input.selectionStart,end=input.selectionEnd,body=chosen||parts[2];
+ input.value=input.value.slice(0,start)+parts[0]+body+parts[1]+input.value.slice(end);
+ input.focus();input.setSelectionRange(start+parts[0].length,start+parts[0].length+body.length);
+ updateComposer();
+}));
+function setGoogleStatus(message){el('google-status').textContent=message;}
+function updateGoogleUI(){
+ const connected=driveConnected();
+ el('google-save').disabled=!connected;el('google-restore').disabled=!connected;
+ el('google-disconnect').hidden=!connected;
+ el('google-connect').textContent=connected?'Reconnect / switch account':'Connect Google account';
+ el('cloud-mini-status').textContent=connected?'● Google Drive connected':'● Local storage';
+ el('storage-badge').textContent=connected?'● Google connected':'● Local';
+}
+el('google-client-id').value=getSavedClientId();
+el('google-connect').addEventListener('click',()=>{
+ try{
+  const clientId=setSavedClientId(el('google-client-id').value);
+  setGoogleStatus('Requesting Google permission...');
+  // The OAuth popup must originate in a user click.
+  connectGoogle(clientId).then(async()=>{
+   updateGoogleUI();setGoogleStatus('Connected. Manual backup is ready.');
+   try{const b=await googleBackupInfo();setGoogleStatus(b.exists?'Backup found: '+new Date(b.modifiedTime).toLocaleString():'Connected. No existing backup.');}
+   catch(err){setGoogleStatus('Connected, backup lookup failed: '+err.message);}
+  }).catch(err=>{updateGoogleUI();setGoogleStatus(err.message);});
+ }catch(err){setGoogleStatus(err.message);}
+});
+el('google-disconnect').addEventListener('click',()=>{
+ driveDisconnect();updateGoogleUI();setGoogleStatus('Disconnected from this session.');
+});
+el('google-save').addEventListener('click',async()=>{
+ if(!driveConnected())return;
+ el('google-save').disabled=true;setGoogleStatus('Saving to Google Drive...');
+ try{
+  const saved=await saveToGoogle(await exportCloudSnapshot());
+  setGoogleStatus('Saved to Google Drive ('+Math.round(saved.bytes/1024)+' KB) · '+new Date().toLocaleString());
+ }catch(err){setGoogleStatus('Backup failed: '+err.message);}
+ finally{updateGoogleUI();}
+});
+el('google-restore').addEventListener('click',async()=>{
+ if(!driveConnected()||busy)return;
+ if(window.confirm&&!window.confirm('Restore Google backup? This REPLACES local chats, folders, memories and weights. Export a local backup first if needed.'))return;
+ el('google-restore').disabled=true;setGoogleStatus('Loading cloud backup...');
+ try{
+  const {snapshot}=await loadFromGoogle();await restoreCloudSnapshot(snapshot);
+  setPanel(null);renderActiveChat();refreshLearning();
+  setGoogleStatus('Google backup restored.');
+ }catch(err){setGoogleStatus('Restore failed: '+err.message);}
+ finally{updateGoogleUI();}
+});
+updateGoogleUI();
+
 function element(tag,cls='',content=''){
  const item=document.createElement(tag);
  if(cls)item.className=cls;
@@ -307,7 +394,7 @@ key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Ke
 document.querySelectorAll('[data-try]').forEach(button=>button.addEventListener('click',()=>{
  if(busy)return;input.value=button.dataset.try;form.requestSubmit();
 }));
-void ready().then(()=>{renderActiveChat();refreshLearning();state('OtaAI ready');})
+void ready().then(()=>{renderActiveChat();refreshLearning();updateComposer();state('OtaAI ready');})
  .catch(()=>state('Could not load local memory'));
 
 async function ask(history,secret,ctx){
@@ -341,7 +428,8 @@ async function ask(history,secret,ctx){
 form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy)return;
  const value=input.value.trim();if(!value)return;
- busy=true;el('send').disabled=true;input.disabled=true;input.value='';
+ busy=true;el('send').disabled=true;input.disabled=true;input.value='';updateComposer();
+ el('typing-status').textContent='OtaAI is responding…';
  const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
  input.placeholder='Message OtaAI... (Shift+Enter for a new line)';
  document.documentElement.lang=lastLanguage;
@@ -358,6 +446,7 @@ form.addEventListener('submit',async event=>{
   showResult(result,ctx);
   const topics=detectTopics(value,ctx.primary);
   learn(value,result.text,topics.length?topics:predictTopics(value),source,languageKey(ctx));
+  if(driveConnected())el('cloud-mini-status').textContent='● Unsaved local changes';
   el('chat-title').textContent=getActiveChat().title;
   refreshLearning();
  }catch(error){
@@ -366,5 +455,6 @@ form.addEventListener('submit',async event=>{
   state('OtaAI error');
  }finally{
   busy=false;el('send').disabled=false;input.disabled=false;input.focus();
+  el('typing-status').textContent='Markdown supported · Enter to send';updateComposer();
  }
 });
