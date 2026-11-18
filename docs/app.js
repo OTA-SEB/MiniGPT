@@ -1,5 +1,5 @@
 import { fallback,detectTopics,topicCount } from './fallback.js?v=3.0';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,clearChat,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=3.0';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,getChats,getActiveChat,createChat,selectChat,renameChat,deleteChat,saveMemoryFact,deleteMemoryFact,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=3.1';
 import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=3.0';
 import { reason } from './reasoning.js?v=3.0';
 import { PERSONA } from './personality.js?v=3.0';
@@ -13,7 +13,7 @@ const threshold=el('confidence-threshold');
 try{const saved=localStorage.getItem('minigpt.threshold');if(['80','90','95'].includes(saved))threshold.value=saved;}catch{}
 threshold.addEventListener('change',()=>{
  try{localStorage.setItem('minigpt.threshold',threshold.value);}catch{}
- el('confidence-display').textContent='Umbral: '+threshold.value+' %';
+ el('confidence-display').textContent='Threshold: '+threshold.value+' %';
 });
 function element(tag,cls='',content=''){
  const item=document.createElement(tag);
@@ -28,11 +28,75 @@ function bubble(role,text,meta=''){
  chat.append(item);
  chat.scrollTop=chat.scrollHeight;
 }
+const workspace=document.querySelector('.workspace');
+const mobile=()=>!!window.matchMedia?.('(max-width: 900px)').matches;
+function setSidebar(open){
+ workspace.classList.toggle('sidebar-open',open&&mobile());
+ workspace.classList.toggle('sidebar-collapsed',!open&&!mobile());
+ el('sidebar-backdrop').hidden=!(open&&mobile());
+ el('conversations-toggle').setAttribute('aria-expanded',String(!!open));
+}
+function closeMobileSidebar(){if(mobile())setSidebar(false);}
+function renderConversationList(){
+ const list=el('conversation-list'),search=el('conversation-search').value.trim().toLowerCase();
+ const chats=getChats();el('conversation-count').textContent=String(chats.length);list.replaceChildren();
+ const filtered=chats.filter(c=>(c.title+' '+c.preview).toLowerCase().includes(search));
+ if(!filtered.length){list.append(element('p','sidebar-empty',search?'No matching chats.':'Your conversations will appear here.'));return;}
+ for(const c of filtered){
+  const item=element('div','conversation-item'+(c.active?' active':''));
+  const open=element('button','conversation-open');open.type='button';open.title=c.title;
+  open.setAttribute('aria-current',c.active?'page':'false');
+  const details=element('span','conversation-details');
+  details.append(element('span','conversation-title',c.title),element('span','conversation-preview',c.preview||'No messages yet'));
+  open.append(element('span','conversation-icon','▤'),details);
+  open.addEventListener('click',()=>{if(busy)return;if(selectChat(c.id)){renderActiveChat();closeMobileSidebar();}});
+  const actions=element('div','conversation-actions'),edit=element('button','conversation-action','✎'),del=element('button','conversation-action delete','×');
+  edit.type='button';edit.title='Rename conversation';edit.setAttribute('aria-label','Rename '+c.title);
+  edit.addEventListener('click',()=>{
+   if(busy)return;const next=window.prompt?.('Rename conversation',c.title);
+   if(next&&renameChat(c.id,next)){renderConversationList();el('chat-title').textContent=getActiveChat().title;}
+  });
+  del.type='button';del.title='Delete conversation';del.setAttribute('aria-label','Delete '+c.title);
+  del.addEventListener('click',()=>{
+   if(busy)return;if(window.confirm&&!window.confirm('Delete this conversation? Other chats and saved memories will remain.'))return;
+   if(deleteChat(c.id)){renderActiveChat();state('Conversation deleted');}
+  });
+  actions.append(edit,del);item.append(open,actions);list.append(item);
+ }
+}
+function renderActiveChat(){
+ const active=getActiveChat(),history=getHistory();messages.length=0;chat.replaceChildren();
+ el('chat-title').textContent=active.title;
+ if(history.length){
+  for(const m of history){bubble(m.role,m.content);messages.push({role:m.role,content:m.content});}
+  const last=[...history].reverse().find(m=>m.role==='user');
+  lastLanguage=last?detectLanguage(last.content,'en').primary:'en';
+ }else{lastLanguage='en';bubble('assistant','Hello! I’m MiniGPT. What would you like to explore today?');}
+ input.placeholder=localText[lastLanguage].placeholder;
+ document.documentElement.lang=lastLanguage;
+ renderConversationList();if(!el('inspector').hidden)renderInspector();
+}
+function startNewConversation(){
+ if(busy)return;createChat();renderActiveChat();closeMobileSidebar();
+ el('confidence-display').textContent='Match: —';state('New conversation');input.focus();
+}
+el('conversations-toggle').addEventListener('click',()=>{
+ if(mobile())setSidebar(!workspace.classList.contains('sidebar-open'));
+ else setSidebar(workspace.classList.contains('sidebar-collapsed'));
+});
+el('conversations-close').addEventListener('click',closeMobileSidebar);
+el('sidebar-backdrop').addEventListener('click',closeMobileSidebar);
+el('new-chat').addEventListener('click',startNewConversation);
+el('conversation-search').addEventListener('input',renderConversationList);
+window.addEventListener?.('resize',()=>setSidebar(!mobile()&&!workspace.classList.contains('sidebar-collapsed')));
+setSidebar(!mobile());
+
 function state(message){status.textContent=message;}
 function refreshLearning(){
  const n=stats();
- el('learning-info').textContent='🧠 '+n.turns+' learned turns · '+n.weights+' topic features · '+n.examples+' examples · '+n.memory+' memories. Base training: '+trainingStats.examples+' phrases / '+trainingStats.weights+' connections. English: '+trainingStats.languages.en+' samples.';
+ el('learning-info').textContent='🧠 '+n.chats+' conversations · '+n.memory+' saved memories · '+n.turns+' learned turns · '+n.weights+' topic features. Base training: '+trainingStats.examples+' phrases.';
  el('model-status').textContent='🧠 '+trainingStats.examples.toLocaleString('en-US')+' training phrases · '+topicCount+' topics';
+ renderConversationList();
  if(!el('inspector').hidden)renderInspector();
 }
 function languageKey(ctx){return ctx.mixed?ctx.languages.slice().sort().join('+'):ctx.primary;}
@@ -137,24 +201,17 @@ el('settings-toggle').addEventListener('click',()=>{
  const box=el('settings');box.hidden=!box.hidden;
  el('settings-toggle').setAttribute('aria-expanded',String(!box.hidden));
 });
-el('clear').addEventListener('click',()=>{
- if(busy)return;
- messages.length=0;clearChat();chat.replaceChildren();
- bubble('assistant',localText[lastLanguage].reset);
- state('🧠 Nueva conversación');refreshLearning();
-});
+el('clear').addEventListener('click',startNewConversation);
 el('forget-memory').addEventListener('click',async()=>{
  if(busy)return;
  if(typeof window.confirm==='function'&&!window.confirm('¿Borrar recuerdos, conversaciones y pesos aprendidos? Se conservarán los pesos predeterminados.'))return;
- await forgetMemory();messages.length=0;chat.replaceChildren();
- bubble('assistant','🧠 Memoria borrada. Los pesos entrenados predeterminados siguen disponibles.');
- refreshLearning();state('✅ Memoria borrada');
+ await forgetMemory();renderActiveChat();refreshLearning();state('Memory and learning cleared');
 });
 el('download-weights').addEventListener('click',()=>{void exportWeights();});
 el('upload-weights').addEventListener('click',()=>el('weights-file').click());
 el('weights-file').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
- try{await ready();await importWeights(file);refreshLearning();state('✅ Pesos importados');}
+ try{await ready();await importWeights(file);renderActiveChat();refreshLearning();state('Saved data imported');}
  catch{state('⚠️ Archivo de pesos no válido');}
  e.target.value='';
 });
@@ -167,16 +224,8 @@ key.addEventListener('input',()=>el('key-info').textContent=key.value.trim()?'Cl
 document.querySelectorAll('[data-try]').forEach(button=>button.addEventListener('click',()=>{
  if(busy)return;input.value=button.dataset.try;form.requestSubmit();
 }));
-void ready().then(()=>{
- const history=getHistory();
- if(history.length){
-  chat.replaceChildren();
-  for(const msg of history){bubble(msg.role,msg.content);messages.push({role:msg.role,content:msg.content});}
-  const last=[...history].reverse().find(x=>x.role==='user');
-  if(last)lastLanguage=detectLanguage(last.content,'en').primary;
- }
- refreshLearning();state('🧠 Modelo local disponible');
-}).catch(()=>state('⚠️ Hubo un error al cargar el modelo local'));
+void ready().then(()=>{renderActiveChat();refreshLearning();state('Local model ready');})
+ .catch(()=>state('Could not load local memory'));
 
 async function ask(history,secret,ctx){
  const languages=ctx.languages.map(l=>LANG_NAMES[l]).join(' + ');
@@ -226,6 +275,7 @@ form.addEventListener('submit',async event=>{
   showResult(result,ctx);
   const topics=detectTopics(value,ctx.primary);
   learn(value,result.text,topics.length?topics:predictTopics(value),source,languageKey(ctx));
+  el('chat-title').textContent=getActiveChat().title;
   refreshLearning();
  }catch(error){
   console.error(error);
