@@ -30,7 +30,7 @@ function cleanResponseMeta(value){
 function safeMessages(value){
  if(!Array.isArray(value))return [];
  return value.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string')
-   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,6000),lang:m.lang||'en',
+   .slice(-MAX_CHAT_MESSAGES).map(m=>({role:m.role,content:m.content.slice(0,6000),lang:m.lang||'en',createdAt:Number.isFinite(m.createdAt)?m.createdAt:Date.now(),
     ...(m.role==='assistant'&&cleanResponseMeta(m.meta)?{meta:cleanResponseMeta(m.meta)}:{})}));
 }
 function createChatRecord(title='New conversation',messages=[]){
@@ -282,8 +282,8 @@ export function learn(input,answer,topics=[],source='local',language='es',meta=n
  if(!chat.messages.some(m=>m.role==='user')&&chat.title==='New conversation'){
    chat.title=String(input).replace(/\s+/g,' ').trim().slice(0,52)||'New conversation';
  }
- chat.messages.push({role:'user',content:String(input).slice(0,6000),lang:language},
-                    {role:'assistant',content:String(answer).slice(0,6000),lang:language,
+ chat.messages.push({role:'user',content:String(input).slice(0,6000),lang:language,createdAt:Date.now()},
+                    {role:'assistant',content:String(answer).slice(0,6000),lang:language,createdAt:Date.now(),
                      ...(cleanResponseMeta(meta)?{meta:cleanResponseMeta(meta)}:{})});
  chat.messages=chat.messages.slice(-MAX_CHAT_MESSAGES);
  chat.updatedAt=Date.now();
