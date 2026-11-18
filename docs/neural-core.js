@@ -60,9 +60,9 @@ export class NeuralIntentNet{
   this.hiddenBias=new Float32Array(NEURAL_HIDDEN);
   this.output=new Float32Array(NEURAL_CLASSES*NEURAL_HIDDEN);
   this.outputBias=new Float32Array(NEURAL_CLASSES);
-  for(let i=0;i<this.embed.length;i++)this.embed[i]=(random()-.5)*.24;
-  for(let i=0;i<this.dense.length;i++)this.dense[i]=(random()-.5)*.23;
-  for(let i=0;i<this.output.length;i++)this.output[i]=(random()-.5)*.17;
+  for(let i=0;i<this.embed.length;i++)this.embed[i]=(random()-.5)*1.2;
+  for(let i=0;i<this.dense.length;i++)this.dense[i]=(random()-.5)*.8;
+  for(let i=0;i<this.output.length;i++)this.output[i]=(random()-.5)*.32;
   this.steps=0;
  }
  arrays(){return [this.embed,this.dense,this.hiddenBias,this.output,this.outputBias];}
@@ -86,7 +86,7 @@ export class NeuralIntentNet{
  }
  forward(indexes){
   const input=new Float32Array(NEURAL_EMBED);
-  const count=Math.max(1,indexes.length);
+  const count=Math.sqrt(Math.max(1,indexes.length));
   for(const index of indexes){
    const start=index*NEURAL_EMBED;
    for(let d=0;d<NEURAL_EMBED;d++)input[d]+=this.embed[start+d]/count;
@@ -160,7 +160,7 @@ export class NeuralIntentNet{
   for(let h=0;h<NEURAL_HIDDEN;h++)this.hiddenBias[h]-=step*gradH[h];
   for(const index of indexes){
    const base=index*NEURAL_EMBED;
-   for(let d=0;d<NEURAL_EMBED;d++)this.embed[base+d]-=step*gradX[d]/indexes.length;
+   for(let d=0;d<NEURAL_EMBED;d++)this.embed[base+d]-=step*gradX[d]/Math.sqrt(indexes.length);
   }
   this.steps++;return loss;
  }
