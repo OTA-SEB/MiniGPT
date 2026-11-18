@@ -4,19 +4,26 @@
 const LIBRARY='https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 const MODELS={
  qwen:{id:'onnx-community/Qwen2.5-0.5B-Instruct',label:'Qwen2.5 0.5B',device:'webgpu',dtype:'q4',tokens:192},
+ qwenCPU:{id:'onnx-community/Qwen2.5-0.5B-Instruct',label:'Qwen2.5 0.5B (CPU)',device:'wasm',dtype:'q4',tokens:192},
  smol:{id:'onnx-community/SmolLM2-135M-Instruct-ONNX-MHA',label:'SmolLM2 135M',device:'wasm',dtype:'q4',tokens:144}
 };
 let loaded=null,loadedName='',transformers=null,active=false;
 const notify=(type,data={})=>postMessage({type,...data});
 function errorText(e){return String(e?.message||e||'Unknown error').slice(0,250);}
-function selectCandidates(requested){
+function selectCandidates(requested,language='es'){
+ // For Spanish, Portuguese and Japanese, prioritize the multilingual model
+ // when the device is likely to support it. The smaller model remains a true fallback.
+ const memory=Number(navigator.deviceMemory||0),lowMemory=memory>0&&memory<=3;
+ const hasGPU=!!navigator.gpu;
+ const needsMultilingual=language!=='en';
  if(requested==='smol')return ['smol'];
- if(requested==='qwen')return ['qwen','smol'];
- const lowMemory=Number(navigator.deviceMemory||0)>0&&navigator.deviceMemory<=3;
- return navigator.gpu&&!lowMemory?['qwen','smol']:['smol'];
+ if(requested==='qwen')return hasGPU?['qwen','qwenCPU','smol']:['qwenCPU','smol'];
+ if(hasGPU&&!lowMemory)return ['qwen','qwenCPU','smol'];
+ if(needsMultilingual&&!lowMemory&&memory>=4)return ['qwenCPU','smol'];
+ return ['smol'];
 }
-async function loadModel(requested){
- const choices=selectCandidates(requested);
+async function loadModel(requested,language){
+ const choices=selectCandidates(requested,language);
  if(!transformers){notify('progress',{phase:'library',detail:'Loading text generation library'});
   transformers=await import(LIBRARY);
  }
@@ -84,7 +91,7 @@ async function generate(data){
  active=true;
  const requestId=data.requestId,selected=['auto','qwen','smol'].includes(data.model)?data.model:'auto';
  try{
-  const {pipe,model}=await loadModel(selected);
+  const {pipe,model}=await loadModel(selected,data.language);
   const history=toPrompt(data);
   let streamed='',lastSent=0;
   const streamer=transformers.TextStreamer?new transformers.TextStreamer(pipe.tokenizer,{
@@ -102,6 +109,8 @@ async function generate(data){
    repetition_penalty:1.09,...(streamer?{streamer}:{})
   });
   const text=extractOutput(result,streamed,'');
+  // Do not confuse the user with a generic / empty model response.
+  // Fallback routing is handled in the chat controller, never here.
   if(!text)throw new Error('The generative model returned no text');
   notify('result',{requestId,text,model:model.label,device:model.device});
  }catch(e){notify('error',{requestId,error:errorText(e)});}
