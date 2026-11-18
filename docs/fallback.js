@@ -28,7 +28,7 @@ const rows=[
 ["xbox","una Xbox","emular una consola","¡XBOX!|Emulación infinita.|Se gastaron las pilas.|El mando se descargó en el peor momento.|Xbox encendió; el mando todavía está buscando pilas."],
 ["playstation,ps5","una PlayStation","leer un disco","¡PULSA X!|Nave espacial PS5.|¿Y el disco?|La consola despegó antes del juego.|PS5 inició tan rápido que yo aún buscaba el control."],
 ["mojang","un desarrollador de Mojang","añadir una cama","¡OTRA CAMA!|Vacas que parpadean.|Hora de dormir.|Otra actualización, veinte teorías.|Mojang añadió algo y ya nacieron cincuenta teorías."],
-["japones,nihongo,baka,こんにちは","un estudiante de japonés","hablar japonés","こんにちは！|日本語はおもしろい！|BAKA JANAI YO!|日本語, un paso a la vez.|Una palabra japonesa más para el inventario del día."],
+["japones,nihongo,baka","un estudiante de japonés","hablar japonés","こんにちは！|日本語はおもしろい！|BAKA JANAI YO!|日本語, un paso a la vez.|Una palabra japonesa más para el inventario del día."],
 ["japon,tokio,tokyo","un viajero","visitar Tokio","¡JAPÓN! 🇯🇵|Hora de explorar Tokio.|¿Dónde está el tren?|Tokio tiene demasiadas cosas por explorar.|Perderse en Tokio también parece una aventura."],
 ["ingles,english","un estudiante de inglés","practicar inglés","Hello, bro!|English mode.|Una palabra nueva.|Una palabra nueva cada día.|Hello again! Otra palabra en inglés desbloqueada."],
 ["portugues,portugués","un estudiante de portugués","hablar portugués","Olá, bro!|Tudo bem?|Português desbloqueado.|Portugués desbloqueado, bro.|Una frase en portugués y ya quiero aprender otra."],
