@@ -1,62 +1,64 @@
-# MiniGPT 🤖
+# MiniGPT 3.0 🤖
 
-MiniGPT 2.1 es una web de chat con un **modelo local mejorado** y conexión opcional a proveedores externos. Incluye **100 temas de respuesta automática**, cinco variantes en español por tema y combinaciones de 2 a 5 temas. Incluye respuestas temáticas en inglés, portugués y japonés. Funciona sin servidor.
+**English-first experimental browser chatbot** with a small statistical intent model, local learning, persistent memory, and bounded symbolic reasoning.
 
-## Abrir desde el móvil
-El sitio para GitHub Pages está en la carpeta [docs/](docs/). Para publicarlo, entra a **Settings → Pages → Build and deployment → Deploy from a branch → main → /docs → Save**. Una vez publicado, estará en:
-https://ota-seb.github.io/MiniGPT/
+MiniGPT runs on GitHub Pages without requiring an API key. It is **not** Qwen or another pretrained neural language model. It doesn't generate arbitrary code yet.
 
-**Importante:** GitHub Free solo ofrece Pages en repositorios públicos. Los repositorios privados requieren GitHub Pro/Team/Enterprise. El sitio de Pages será público incluso cuando el repositorio sea privado (excepto configuraciones empresariales especiales). Si no aparece la opción Pages, puedes publicar docs en otro hosting o cambiar la visibilidad del repositorio si decides hacer público el código.
+**Live site:** https://ota-seb.github.io/MiniGPT/
 
-## Mejoras de MiniGPT 2.1
+## What's new
 
-- **Interfaz adaptable:** panel lateral de inspección en PC y visor superpuesto en móvil, ajustes en tarjetas y chat cómodo en pantallas pequeñas.
-- **Cerebro local entrenado:** 7.026 frases sintéticas preparadas en español, inglés, portugués y japonés (incluido romaji), con **18.351 conexiones de características** en la base del modelo de respuestas. Además conserva los 100 temas y sus propios pesos de aprendizaje. El entrenamiento sintético se genera localmente desde `docs/default-model.js`, no descarga un LLM.
-- **Modo con confianza estimada:** selector 80 %, 90 % o 95 %. Cuando el clasificador encuentra una intención aprendida con confianza suficiente, MiniGPT responde mediante el motor local entrenado. De otro modo sigue el motor temático automático y la recuperación de memoria. **Ese porcentaje NO es una probabilidad estadística validada**, solo un indicador heurístico de similitud.
-- **Visor local:** botón **🔎 Memoria**, pestañas *Memoria* y *Pesos*, búsqueda de recuerdos y características, historial reciente y conexiones entrenadas.
-- **Idiomas:** pruebas funcionales con «Hola, cómo estás en el día de hoy», «Hello, how are you today?», «Oi, como você está hoje?», «こんにちは、今日は元気ですか？» y «konnichiwa kyou wa genki desu ka».
-- **Privacidad:** los mensajes y pesos personalizados permanecen en tu navegador a menos que actives voluntariamente una API externa. El visor no publica información en el repositorio. La importación de pesos v1 y v2 sigue admitida.
+- **200 topics**: the original 100 general topics plus exactly **100 new technical topics** covering programming fundamentals, data structures, algorithms, software design, web, databases, and security concepts.
+- Old user-specific subjects and examples in the *default model* have been replaced with neutral creative-design topics and ordinary arithmetic or decision-making topics.
+- **English-focused training** in `docs/default-model.js`: approximately 17,800 synthetic phrase examples, with over 10,800 English examples; lighter Spanish, Portuguese, Japanese and romaji support. Phrase counts are generated dynamically and may evolve.
+- **Short factual explanations** for technical concepts, rather than only generic conversation openers.
+- **Bounded reasoning** for arithmetic (with operator precedence), arithmetic sequences, numeric comparisons, basic logical implication, and static recognition of simple code constructs/errors. The engine does not execute code and will not invent an answer if a pattern isn't supported.
+- Confidence selector (80 / 90 / 95): the percentage is a **heuristic match score, not calibrated certainty**.
+- Inspect local learned topic weights, trained-response model features, and remembered conversation facts from the **Memory** panel.
+- Optional access to external APIs and links to model download pages. Download links do **not** load neural models into the app.
 
-### Enlaces para descargar modelos reales
+## Examples to try
 
-Estos modelos **no se ejecutan automáticamente dentro de la web de MiniGPT**; los enlaces sirven para explorar y descargar archivos para herramientas compatibles.
+- `Hello, how are you today?`
+- `What is recursion?`
+- `Explain a stack and a queue`
+- `What is an API?`
+- `Calculate (8+4)/3`
+- `Next number: 2,4,6,8`
+- `If it rains, then the ground is wet. it rains. What follows?`
+- `Explain this Python code: for i in range(3): print(i)`
+- `Hola, ¿cómo estás?`, `Oi como voce esta hoje`, `こんにちは`, `konnichiwa`
 
-- [Qwen2.5-0.5B-Instruct — Hugging Face](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
-- [Qwen2.5-0.5B-Instruct — GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF)
-- [SmolLM2-135M-Instruct — Hugging Face](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct)
-- [Qwen2.5 0.5B — Ollama](https://ollama.com/library/qwen2.5:0.5b)
+## Architecture
 
-## Usar el cerebro real
-1. Toca **🧠 Cerebro**.
-2. Elige OpenRouter, OpenAI o Gemini y un modelo disponible para tu cuenta.
-3. Pega tu API key en el campo. No hay que editar archivos ni salir de la web.
-4. Si la clave falta, el proveedor falla o el navegador bloquea CORS, MiniGPT usa sus respuestas automáticas. Para temas desconocidos, el mini modelo local prueba primero lo que ha aprendido de conversaciones previas; si no tiene información suficiente, responde "No puedo responder ahora mismo".
+- `docs/index.html` and `docs/style.css`: responsive interface for phones and desktops.
+- `docs/app.js`: conversation, model selection, topic routing, and memory inspector.
+- `docs/extra-topics.js`: the 100 additional technical topics and their English explanatory notes.
+- `docs/fallback.js`: topic aliases and localized response combinations.
+- `docs/i18n.js`: English-first detection with ES/PT/JA support and romaji matching.
+- `docs/default-model.js`: English-weighted synthetic training, matching, confidence heuristic, and topic answers.
+- `docs/reasoning.js`: bounded deterministic reasoning; no use of eval and no execution of user-submitted code.
+- `docs/learning.js`: trainable local associations, OPFS/localStorage persistence, memory, import/export and privacy controls.
+- `docs/personality.js`: general-purpose assistant instructions for optional external APIs.
 
-OpenRouter utiliza por defecto el modelo `openrouter/free`, sujeto a los límites del proveedor. Otros proveedores pueden cobrar por uso.
+### Saved data and privacy
 
-### Seguridad
-La clave **no se guarda en GitHub ni en localStorage** y solo vive durante la sesión actual. La web la envía directamente al proveedor elegido. **Una API key usada en un navegador puede quedar expuesta**, incluso si la ocultas visualmente; conviene usar una clave con límites de gasto y no compartirla. No pegues ninguna clave en el código del repositorio.
+Local learning and remembered conversation facts are stored in the user's browser, **not committed to GitHub**. Personal weight JSON files are never used as public seed data. You can inspect, export, import, or clear local data in the UI.
 
-## Idiomas automáticos 🌐
-MiniGPT 2.1 detecta el idioma de la conversación entre **español, inglés, portugués y japonés**, sin menú ni preguntas. Puede detectar varios temas incluso si aparecen en idiomas diferentes, como `Hola, chess と 猫`; combina respuestas por idioma y tema. En el modo automático, cada tema tiene cinco respuestas originales en español y mensajes localizados con cinco variantes localizadas en los otros tres idiomas. El detector es ligero y puede equivocarse con textos muy cortos o ambiguos.
+The **v1 and v2 weight formats remain importable**. Topic IDs 0, 32–41, and 73 were repurposed in v3, so obsolete saved topic associations for those IDs are not carried over. Other learned associations may be retained. To delete any personal memories left from older conversations, use **Clear learned memory & weights**.
 
-En el modo con API, MiniGPT pide al proveedor que responda en el idioma predominante o conserve una mezcla natural cuando detecta varios. Ese comportamiento depende también del modelo externo.
+External API usage is optional. When enabled, messages and relevant memory are sent to that provider; API keys are not persisted in localStorage or GitHub. Browser-based keys can still be exposed: use an appropriately restricted key.
 
-La detección reconoce un vocabulario básico de **romaji** (`konnichiwa`, `neko`, `mizu`, `nihongo`, `arigatou`, etc.) y lo vincula a hiragana/katakana cuando es posible. No es un traductor universal. El aprendizaje local guarda los ejemplos con su idioma para no recuperar por accidente una respuesta en otro idioma. **No traduce cualquier texto ni aprende gramática general por sí solo**: el modo sin API usa un diccionario temático y un pequeño modelo de asociaciones.
+### Running the site
 
-## Aprendizaje local
-El clasificador de intenciones entrenado se encuentra en `docs/default-model.js`. El mini modelo estadístico inicializa **pesos predeterminados** para los 100 temas y aprende automáticamente asociaciones y respuestas útiles de cada conversación. Recupera el historial reciente entre sesiones, detecta algunas afirmaciones expresas del usuario (por ejemplo, `me gusta el anime` o `konnichiwa significa hola`) y puede responder preguntas sobre ellas. Guarda sus pesos en **minigpt-pesos.json** dentro del almacenamiento privado del navegador (OPFS, si está disponible), con respaldo en almacenamiento local. Puedes **exportar** e **importar** ese archivo desde 🧠 Cerebro. Se conserva entre sesiones en el mismo navegador, pero puede perderse si borras los datos del sitio; exporta una copia si quieres conservarlo. **Importar pesos v1** agrega lo aprendido sin borrar las asociaciones iniciales; el archivo nuevo usa `version: 2`. El botón **↻** borra la conversación visible y su historial guardado; **🗑️ Borrar recuerdos y aprendizaje** borra el aprendizaje y la memoria personal, manteniendo el vocabulario inicial.
+GitHub Pages: select **Settings → Pages → Deploy from a branch → main → /docs**. No build step is needed for the source.
 
-**Límites:** este motor de asociaciones, memoria y recuperación contextual **no es una réplica de Qwen ni usa sus pesos**. Qwen2.5 de 0,5B tiene cientos de millones de parámetros y sus pesos entrenados no se pueden reconstruir con unas reglas. Sin un modelo descargado o un servidor, GitHub Pages no puede ejecutar Ollama. MiniGPT tampoco entrena un gran modelo generativo desde cero ni aprende automáticamente hechos verificados. Si se configura una API externa, las respuestas de esa API se usan como ejemplos locales. No sube las conversaciones ni los pesos al repositorio.
+Model download references:
+- [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
+- [Qwen2.5 GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF)
+- [SmolLM2 135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct)
+- [Qwen2.5 0.5B on Ollama](https://ollama.com/library/qwen2.5:0.5b)
 
-## Archivos
-- `docs/index.html`: interfaz móvil.
-- `docs/app.js`: conexión a modelo real y modo de emergencia.
-- `docs/fallback.js`: cien conversaciones temáticas, cinco respuestas por tema y combinaciones.
-- `docs/learning.js`: mini modelo local, pesos iniciales, asociaciones, recuerdos, historial, inspección y exportación/importación v1/v2.
-- `docs/default-model.js`: entrenamiento sintético multilingüe inicial, pesos del modelo de respuestas y confianza estimada.
-- `docs/i18n.js`: detección de idiomas, diccionario multilingüe, mezclas y conversión romaji → kana.
-- `docs/personality.js`: personalidad y referencias creativas (el chiste de los panes, "ax", anime, videojuegos y Broken Threads).
-- `docs/style.css`: estilos.
+## Next milestone (not implemented)
 
-No almacenes información privada en los archivos del sitio. MiniGPT es un experimento creativo, no una IA entrenada desde cero.
+**Local code construction/generation** with parsing, constraints, examples, safety checks and tests. This version is dedicated to understanding technical language and simple verifiable reasoning first.
