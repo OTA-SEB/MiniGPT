@@ -1,13 +1,14 @@
-import { fallback,detectTopics,topicCount } from './fallback.js?v=2.1';
-import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,clearChat,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=2.1';
-import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=2.1';
+import { fallback,detectTopics,topicCount } from './fallback.js?v=3.0';
+import { ready,learn,predictTopics,recall,stats,exportWeights,importWeights,getHistory,clearChat,answerMemory,memoryContext,forgetMemory,inspectMemory,inspectWeights } from './learning.js?v=3.0';
+import { inferDefault,respondDefault,trainingStats,defaultWeightView } from './default-model.js?v=3.0';
+import { reason } from './reasoning.js?v=3.0';
 import { PERSONA } from './personality.js';
-import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=2.1';
+import { detectLanguage,localText,LANG_NAMES } from './i18n.js?v=3.0';
 
 const el=id=>document.getElementById(id);
 const chat=el('chat'),form=el('form'),input=el('message'),provider=el('provider'),model=el('model'),key=el('api-key'),status=el('status');
 const defaults={openrouter:'openrouter/free',openai:'gpt-4o-mini',gemini:'gemini-2.5-flash'};
-const messages=[];let busy=false,lastLanguage='es',inspectorTab='memory';
+const messages=[];let busy=false,lastLanguage='en',inspectorTab='memory';
 const threshold=el('confidence-threshold');
 try{const saved=localStorage.getItem('minigpt.threshold');if(['80','90','95'].includes(saved))threshold.value=saved;}catch{}
 threshold.addEventListener('change',()=>{
@@ -30,14 +31,16 @@ function bubble(role,text,meta=''){
 function state(message){status.textContent=message;}
 function refreshLearning(){
  const n=stats();
- el('learning-info').textContent='🧠 '+n.turns+' turnos propios · '+n.weights+' características temáticas · '+n.examples+' ejemplos · '+n.memory+' recuerdos. Entrenamiento base: '+trainingStats.examples+' frases / '+trainingStats.weights+' conexiones.';
- el('model-status').textContent='🧠 '+trainingStats.examples.toLocaleString('es-CO')+' frases entrenadas · '+topicCount+' temas';
+ el('learning-info').textContent='🧠 '+n.turns+' learned turns · '+n.weights+' topic features · '+n.examples+' examples · '+n.memory+' memories. Base training: '+trainingStats.examples+' phrases / '+trainingStats.weights+' connections. English: '+trainingStats.languages.en+' samples.';
+ el('model-status').textContent='🧠 '+trainingStats.examples.toLocaleString('en-US')+' training phrases · '+topicCount+' topics';
  if(!el('inspector').hidden)renderInspector();
 }
 function languageKey(ctx){return ctx.mixed?ctx.languages.slice().sort().join('+'):ctx.primary;}
 function localAnswer(value,ctx){
  const remembered=answerMemory(value,ctx.primary);
  if(remembered)return {text:remembered,mode:'memory',confidence:100};
+ const thought=reason(value,ctx.primary);
+ if(thought)return {text:thought.text,mode:'reasoning',confidence:thought.confidence,kind:thought.kind};
  const direct=detectTopics(value,ctx.primary);
  const decision=inferDefault(value,ctx.primary);
  // Si el usuario mezcla varios temas, respetar la composición de 2 a 5 temas.
@@ -51,6 +54,7 @@ function localAnswer(value,ctx){
  return {text:fallback(value,guess,ctx),mode:'fallback',confidence:decision.percent};
 }
 function resultMeta(result){
+ if(result.mode==='reasoning')return '🧮 Reasoning engine · '+result.kind+' · deterministic';
  if(result.mode==='trained')return '🧠 Modelo entrenado · '+result.confidence+' % coincidencia estimada';
  if(result.mode==='memory')return '🗂️ Respuesta desde la memoria';
  if(result.mode==='recall')return '💾 Ejemplo recordado';
@@ -60,8 +64,8 @@ function resultMeta(result){
 function showResult(result,ctx){
  bubble('assistant',result.text,resultMeta(result));
  messages.push({role:'assistant',content:result.text});
- el('confidence-display').textContent=result.mode==='trained'?'Coincidencia: '+result.confidence+' % (estimada)':result.mode==='memory'?'Memoria utilizada':result.mode==='api'?'API externa':'Coincidencia insuficiente';
- state(result.mode==='trained'?'🧠 Modelo local · '+result.confidence+' % aprox.':result.mode==='memory'?'🗂️ Memoria local':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:localText[ctx.primary].status);
+ el('confidence-display').textContent=result.mode==='trained'?'Coincidencia: '+result.confidence+' % (estimada)':result.mode==='memory'?'Memoria utilizada':result.mode==='api'?'API externa':result.mode==='reasoning'?'Razonamiento verificado':'Coincidencia insuficiente';
+ state(result.mode==='trained'?'🧠 Modelo local · '+result.confidence+' % aprox.':result.mode==='memory'?'🗂️ Memoria local':result.mode==='api'?'🌐 '+LANG_NAMES[ctx.primary]:result.mode==='reasoning'?'🧮 Razonamiento local':localText[ctx.primary].status);
 }
 const safeText=(s)=>String(s||'').toLowerCase();
 function inspectorRow(container,title,detail,subtitle='',type='memory'){
@@ -162,7 +166,7 @@ void ready().then(()=>{
   chat.replaceChildren();
   for(const msg of history){bubble(msg.role,msg.content);messages.push({role:msg.role,content:msg.content});}
   const last=[...history].reverse().find(x=>x.role==='user');
-  if(last)lastLanguage=detectLanguage(last.content,'es').primary;
+  if(last)lastLanguage=detectLanguage(last.content,'en').primary;
  }
  refreshLearning();state('🧠 Modelo local disponible');
 }).catch(()=>state('⚠️ Hubo un error al cargar el modelo local'));
@@ -199,7 +203,7 @@ form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy)return;
  const value=input.value.trim();if(!value)return;
  busy=true;el('send').disabled=true;input.disabled=true;input.value='';
- const ctx=detectLanguage(value,'es');lastLanguage=ctx.primary;
+ const ctx=detectLanguage(value,'en');lastLanguage=ctx.primary;
  input.placeholder=localText[lastLanguage].placeholder;
  document.documentElement.lang=lastLanguage;
  bubble('user',value);messages.push({role:'user',content:value});
