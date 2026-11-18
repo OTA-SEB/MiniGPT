@@ -1,4 +1,4 @@
-// MiniGPT 3.0 - bounded arithmetic, logic and static code inspection. No eval().
+// OtaAI 3.0 - bounded arithmetic, logic and static code inspection. No eval().
 export function reason(input,lang='en'){
  const raw=String(input||'').trim();if(raw.length>1800)return null;
  const l=raw.toLowerCase(),loc=(en,es,pt,ja)=>({en,es,pt,ja}[lang]||en);
