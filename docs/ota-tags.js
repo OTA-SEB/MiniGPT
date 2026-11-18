@@ -1,5 +1,5 @@
 // OtaAI tags are interpreted as DATA, never passed into innerHTML.
-export function parseOtaTags(value){
+export function parseOtaTags(value,sentAt=Date.now()){
  let text=String(value||'');const items=[],limit=48;
  const patterns=[
   ['code',/<code\s*=\s*["']?([\w+.#-]{1,25})["']?\s*>([\s\S]*?)<\/code>/i],
@@ -18,7 +18,7 @@ export function parseOtaTags(value){
   if(type==='save'){data.name=String(match[1]||'').trim().slice(0,60);data.content=match[2].trim().slice(0,400);}
   if(type==='color'){data.color=match[1].toLowerCase();data.content=match[2].slice(0,3000);}
   if(type==='mark')data.content=match[1].slice(0,3000);
-  if(type==='time'){data.direction=match[1]||'';data.seconds=Number(match[2]||0);data.base=Date.now();}
+  if(type==='time'){data.direction=match[1]||'';data.seconds=Number(match[2]||0);data.base=Number.isFinite(sentAt)?sentAt:Date.now();}
   if(type==='stime')data.base=Date.now();
   items.push(data);
   text=text.slice(0,match.index)+marker+text.slice(match.index+match[0].length);
