@@ -8,7 +8,7 @@ import { renderMarkdown } from './markdown.js?v=1.4';
 import { memoryBlocks } from './ota-tags.js?v=1.4';
 import { neuralEnabled,setNeuralEnabled,neuralStatus,neuralPredict,retrainNeural,watchNeural,startNeural } from './neural.js?v=1.4';
 import {composeTopicAnswer} from './hybrid-reasoner.js?v=1.4';
-import { setupComposer } from './composer.js?v=1.6';
+import { setupComposer } from './composer.js?v=1.7';
 import { generateLocally,chooseGenerativeModel,generativeModel,watchGenerative,cancelGeneration,resetGenerativeWorker } from './generative.js?v=1.6';
 import {routeResponse} from './response-router.js?v=1.6';
 import { connectGoogle,driveDisconnect,driveConnected,getSavedClientId,setSavedClientId,googleBackupInfo,saveToGoogle,loadFromGoogle } from './google-drive.js?v=1.4';
@@ -37,7 +37,7 @@ for(const [name,options] of Object.entries(prefs)){
  });
 }
 // Formatting is applied INSIDE the editor as Markdown syntax is completed.
-// Enter inserts a newline. Only the Send button or Ctrl/Cmd+Enter submits.
+// Desktop: Enter sends, Shift+Enter adds a line. Mobile: Enter adds a line.
 const composer=setupComposer(input,()=>form.requestSubmit());
 function updateComposer(){
  input.style.height='auto';
@@ -567,6 +567,6 @@ form.addEventListener('submit',async event=>{
   state('OtaAI error');
  }finally{
   busy=false;el('send').disabled=false;composer.disable(false);input.focus();
-  el('typing-status').textContent='Enter: new line · Ctrl+Enter: send';updateComposer();
+  el('typing-status').textContent='Desktop: Enter to send · Shift+Enter for new line · Mobile: Enter for new line';updateComposer();
  }
 });
