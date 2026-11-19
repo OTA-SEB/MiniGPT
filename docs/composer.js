@@ -123,6 +123,14 @@ function insertTextAtCaret(editor,text){
  range.insertNode(node);
  const after=document.createRange();after.setStart(node,text.length);after.collapse(true);sel.removeAllRanges();sel.addRange(after);
 }
+// Phones/tablets keep Enter as newline. Desktops send with Enter; Shift+Enter inserts a newline.
+function isTouchKeyboard(){
+ try{
+  if(typeof navigator!=='undefined'&&(navigator.userAgentData?.mobile===true||
+     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')))return true;
+  return !!window.matchMedia?.('(pointer: coarse) and (hover: none)')?.matches;
+ }catch{return false;}
+}
 export function setupComposer(editor,submit){
  let composing=false;
  const onInput=()=>{
@@ -136,13 +144,20 @@ export function setupComposer(editor,submit){
  editor.addEventListener('input',onInput);
  editor.addEventListener('keydown',event=>{
   if(event.key!=='Enter'||event.isComposing||composing)return;
-  if((event.ctrlKey||event.metaKey)&&!event.shiftKey){event.preventDefault();submit();return;}
-  if(beginCodeFence(editor)){event.preventDefault();return;}
-  // In a code block, Enter must insert a newline and NEVER send a message.
-  if(inside(window.getSelection?.()?.anchorNode,'pre.composer-code')){
-   event.preventDefault();insertTextAtCaret(editor,'\n');
+  if((event.ctrlKey||event.metaKey)&&!event.shiftKey){
+   event.preventDefault();submit();return;
   }
-  // All other Enter presses retain the browser's native newline behavior.
+  const touch=isTouchKeyboard();
+  if(!touch&&!event.shiftKey){
+   event.preventDefault();submit();return;
+  }
+  // Only a newline action enters a formatted code block.
+  if(beginCodeFence(editor)){event.preventDefault();return;}
+  // Inside an editable code block insert a raw newline.
+  if(inside(window.getSelection?.()?.anchorNode,'pre.composer-code')){
+   event.preventDefault();insertTextAtCaret(editor,'\n');return;
+  }
+  // Shift+Enter on desktop, or Enter on mobile, uses native line break.
  });
  editor.addEventListener('paste',event=>{
   const data=event.clipboardData?.getData('text/plain');if(typeof data!=='string')return;
