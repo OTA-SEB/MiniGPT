@@ -156,6 +156,20 @@ for(const [id,aliases] of Object.entries(ROMAJI_TOPICS)){
 }
 // Bounded, balanced supervised samples for the browser neural model.
 // These strings are synthetic/public topic templates, never private conversations.
+// Original authored responses are supervision for our own from-scratch neural decoder.
+// Runtime inference never reads these answers or selects one by matching a topic.
+export function generativeSeedPairs(){
+ const rows=[];
+ for(const [lang,intents] of Object.entries(DIALOG)){
+  for(const item of Object.values(intents)){
+   const qs=item.q||[],answers=item.a||[];
+   if(!qs.length||!answers.length)continue;
+   for(let i=0;i<Math.min(qs.length,16);i++)
+    rows.push({lang,prompt:qs[i],answer:answers[i%answers.length],kind:'dialog'});
+  }
+ }
+ return rows;
+}
 export function neuralTrainingExamples(maxPerLabelAndLang=9){
  const cap=Math.max(2,Math.min(16,Number(maxPerLabelAndLang)||9));
  const counts=new Map(),rows=[];
